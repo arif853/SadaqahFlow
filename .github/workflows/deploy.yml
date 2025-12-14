@@ -27,6 +27,7 @@ jobs:
           php artisan config:clear
           php artisan route:clear
           php artisan view:clear
+          
 
       # Upload Laravel core files
       - name: Upload Laravel Core (outside public_html)
