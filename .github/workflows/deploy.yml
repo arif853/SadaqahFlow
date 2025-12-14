@@ -35,7 +35,7 @@ jobs:
           server: ftp.arifhossen.site
           username: cpds@cpds-dk-bs.org
           password: "9D,Laoh24fnc0&vE"
-          port: 22
+          # port: 22
           # local-dir: ./
           # server-dir: /
           exclude: |
