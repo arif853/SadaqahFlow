@@ -1,0 +1,46 @@
+name: Deploy Laravel 10 to cPanel (FTP)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+
+      - name: Install Composer dependencies
+        run: composer install --no-dev --optimize-autoloader
+
+      - name: Prepare Laravel for production
+        run: |
+          php artisan config:clear
+          php artisan route:clear
+          php artisan view:clear
+
+      # Upload Laravel core files
+      - name: Upload Laravel Core (outside public_html)
+        uses: SamKirkland/FTP-Deploy-Action@4.3.0
+        with:
+          server: ftp.arifhossen.site
+          username: cpds@cpds-dk-bs.org
+          password: "9D,Laoh24fnc0&vE"
+          port: 22
+          # local-dir: ./
+          # server-dir: /
+          exclude: |
+            **/.git*
+            **/.github/**
+            **/node_modules/**
+            **/.env
+            public/**

@@ -1,0 +1,42 @@
+image: composer:2
+
+stages:
+  - build
+  - deploy
+
+# ------------------------
+# Build Laravel vendor files
+# ------------------------
+build:
+  stage: build
+  script:
+    - composer install --no-dev --prefer-dist --optimize-autoloader
+  artifacts:
+    paths:
+      - vendor/
+      - bootstrap/cache/
+    expire_in: 1 hour
+
+# ------------------------
+# Deploy to cPanel via FTP
+# ------------------------
+deploy:
+  stage: deploy
+  image: alpine:latest
+  only:
+    - main   # deploy only when pushing to main branch
+  before_script:
+    - apk update
+    - apk add lftp
+  script:
+    - lftp -c "
+        open -u $FTP_USER,$FTP_PASS $FTP_HOST;
+        mirror -R \
+          --parallel=5 \
+          --exclude .git/ \
+          --exclude .gitlab-ci.yml \
+          --exclude node_modules/ \
+          --exclude storage/logs/ \
+          --exclude .env \
+          ./ $FTP_PATH;
+      "
