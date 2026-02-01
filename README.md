@@ -63,37 +63,12 @@ The system enables organizations to:
 
 ## 🛠️ Technology Stack
 
-<table>
-<tr>
-<td>
-
-**Backend**
-- Laravel 10.x
-- PHP 8.1+
-- MySQL 8.0+
-- Eloquent ORM
-
-</td>
-<td>
-
-**Frontend**
-- Blade Templates
-- TailwindCSS 3.x
-- Alpine.js 3.x
-- Vite 4.x
-
-</td>
-<td>
-
-**Packages**
-- Spatie Permission
-- Intervention Image 3.x
-- mPDF (PDF Generation)
-- Laravel Sanctum
-
-</td>
-</tr>
-</table>
+| Backend | Frontend | Packages |
+|---------|----------|----------|
+| Laravel 10.x | Blade Templates | Spatie Permission |
+| PHP 8.1+ | TailwindCSS 3.x | Intervention Image 3.x |
+| MySQL 8.0+ | Alpine.js 3.x | mPDF (PDF Generation) |
+| Eloquent ORM | Vite 4.x | Laravel Sanctum |
 
 ---
 
@@ -439,5 +414,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 </div>
 
- 
- 
