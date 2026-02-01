@@ -1,4 +1,10 @@
-# Security Best Practices for CPDS-DK-BS
+# Security Policy for SadaqahFlow
+
+## 🔒 Reporting Security Vulnerabilities
+
+If you discover a security vulnerability within SadaqahFlow, please report it responsibly by contacting the maintainers directly. **Do not open a public GitHub issue for security vulnerabilities.**
+
+---
 
 ## ✅ Security Improvements Implemented
 

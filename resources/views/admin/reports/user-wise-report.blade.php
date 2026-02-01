@@ -68,7 +68,7 @@
                                 <input type="hidden" name="userId" value="{{Auth::user()->id}}">
                                 @endif
                                 <div class="col-12 col-sm-12 col-md-3 col-lg-3 col-xl-3 col-xxl-3 d-flex">
-                                    <button type="button" id="previewBtn" class="btn btn-primary btn-lg me-2 my-auto p-10">Preview</button>
+                                    {{-- <button type="button" id="previewBtn" class="btn btn-primary btn-lg me-2 my-auto p-10">Preview</button> --}}
                                     <button type="submit" class="btn btn-danger btn-lg my-auto p-10">Download</button>
                                 </div>
                             </div>
@@ -134,10 +134,10 @@
                     return;
                 }
                 let uid = $('#searchInput3').val();
-                if (!uid) {
-                    alert('Please select a user to preview the report');
-                    return;
-                }
+                // if (!uid) {
+                //     alert('Please select a user to preview the report');
+                //     return;
+                // }
                 $.ajax({
                     url: `/reports/user-wise-report/fetchKhedmot`,
                     type: "GET",

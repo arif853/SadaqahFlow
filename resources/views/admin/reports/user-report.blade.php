@@ -22,12 +22,27 @@
         }
 
         /* Top small phrases */
-        .header-top{
-            text-align: center;
+        .header-top-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+        
+        .header-top-table td {
             font-family: 'nikosh', sans-serif;
             font-weight: 700;
-            margin-bottom: 6px;
             font-size: 18px;
+            width: 33%; /* This ensures equal spacing across the top */
+            border: none;
+        }
+        
+        .ht1 { text-align: center; }
+        /* Using center for the middle one often looks better in reports */
+        .ht2 { text-align: center; padding-left: 20px; } 
+        .ht3 { text-align: center; padding-left: 20px; }
+        
+        .header-center {
+            text-align: center;
         }
 
         /* Row holding logo at left and title centered */
@@ -82,7 +97,13 @@
 </head>
 <body >
     <header>
-        <div class="header-top">ইয়া আল্লাহু &nbsp;&nbsp; ইয়া রহমানু &nbsp;&nbsp; ইয়া রাহিম</div>
+        <table class="header-top-table">
+            <tr>
+                <td class="ht1">ইয়া আল্লাহু !</td>
+                <td class="ht2">ইয়া রাহ্‌মানু !!</td> 
+                <td class="ht3">ইয়া রাহীম !!!</td>
+            </tr>
+        </table>
         <div class="header-row">
             {{-- <div class="header-left">
                 <img src="{{ public_path('assets/images/logo-2.png') }}" alt="Logo">
@@ -90,8 +111,8 @@
             <div class="header-center">
                 <h2 style="margin: 5px 0;">বসিবার স্থান দক্ষিণ কুতুবখালি</h2>
                 <p>রসুলপুর, যাত্রাবাড়ী, ঢাকা ১২৩৬</p>
-                <p>কর্মী খেদমত রিপোর্ট </p>
-                <p>কর্মীর নামঃ <span style="font-size: 12px;">{{$user->name}}</span> </p>
+                <p>কর্মী খেদমত রিপোর্ট  - কর্মীর নামঃ <span style="font-size: 12px;">{{$user->name}}</span></p>
+                
             </div>
         </div>
     </header>
