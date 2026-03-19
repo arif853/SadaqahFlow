@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Models\User;
+use App\Models\Member;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
-use App\Models\Member;
 use App\Models\MemberAssign;
+use Inertia\Inertia;
 
 class UserController extends Controller
 {
@@ -29,8 +29,14 @@ class UserController extends Controller
         $members = Member::where('status', 1)
                     ->whereDoesntHave('memberAssigns') // Ensure no assignments exist for the member
                     ->get();
+        // convert users to array with roles included for easy access in React
+        $users->load('roles');
 
-        return view('admin.users.index', compact('users', 'roles', 'members'));
+        return Inertia::render('Users/Index', [
+            'users' => $users,
+            'roles' => $roles,
+            'members' => $members
+        ]);
     }
 
     public function getMember($id)
@@ -51,6 +57,9 @@ class UserController extends Controller
             ]);
         }
         session()->flash('status', ['type' => 'success', 'message' => 'সদস্য সফলভাবে যোগ করা হয়েছে']);
+        if ($request->header('X-Inertia')) {
+            return redirect()->back();
+        }
         return response()->json(['status' => 'success', 'message' => 'সদস্য সফলভাবে যোগ করা হয়েছে']);
     }
 
@@ -140,9 +149,15 @@ class UserController extends Controller
                 $user->syncRoles($request->role);
             }
             session()->flash('status', ['type' => 'success', 'message' => 'ইউজার সফলভাবে আপডেট হয়েছে']);
+            if ($request->header('X-Inertia')) {
+                return redirect()->back();
+            }
             return response()->json(['status' => 'success', 'message' => 'ইউজার সফলভাবে আপডেট হয়েছে']);
         }else{
             session()->flash('status', ['type' => 'danger', 'message' => 'ইউজার আপডেট সফলভাবে হয়নি']);
+            if ($request->header('X-Inertia')) {
+                return redirect()->back();
+            }
             return response()->json(['status' => 'danger', 'message' => 'ইউজার আপডেট সফলভাবে হয়নি']);
         }
     }
@@ -155,6 +170,9 @@ class UserController extends Controller
         $user = User::findOrFail($id);
         $user->delete();
         session()->flash('status', ['type' => 'success', 'message' => 'ইউজার সফলভাবে ডিলেট হয়েছে']);
+        if (request()->header('X-Inertia')) {
+            return redirect()->back();
+        }
         return response()->json(['status' => 'success', 'message' => 'ইউজার সফলভাবে ডিলেট হয়েছে']);
     }
 
@@ -169,6 +187,9 @@ class UserController extends Controller
         $user = User::findOrFail($userId);
         $user->removeMemberAssign($memberId);
         session()->flash('status', ['type' => 'success', 'message' => 'সদস্য সফলভাবে সরানো হয়েছে']);
+        if (request()->header('X-Inertia')) {
+            return redirect()->back();
+        }
         return response()->json(['status' => 'success', 'message' => 'সদস্য সফলভাবে সরানো হয়েছে']);
     }
 

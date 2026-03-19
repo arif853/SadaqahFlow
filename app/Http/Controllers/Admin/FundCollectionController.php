@@ -7,12 +7,11 @@ use App\Models\Member;
 use App\Models\Khedmot;
 use App\Models\Receive;
 use Illuminate\Http\Request;
-use App\Models\FundCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Xenon\LaravelBDSms\Facades\SMS;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class FundCollectionController extends Controller
 {
@@ -33,7 +32,7 @@ class FundCollectionController extends Controller
                 $fundCollection->khedmots = Khedmot::whereIn('id', explode(',', $fundCollection->khedmot_ids))->get();
             }
         }
-        return view('admin.fund_collection.receive.index', compact('fundCollections'));
+        return Inertia::render('FundCollection/ReceiveIndex', ['fundCollections' => $fundCollections]);
     }
 
     /**
@@ -68,7 +67,7 @@ class FundCollectionController extends Controller
             $members = $user->memberAssigns()->get();
             // dd($members, $khedmots);
         }
-        return view('admin.fund_collection.receive.receive', compact('khedmots', 'members'));
+        return Inertia::render('FundCollection/ReceiveCreate', ['khedmots' => $khedmots, 'members' => $members]);
     }
 
     /**
@@ -162,6 +161,13 @@ class FundCollectionController extends Controller
             $fundCollection->save();
 
             DB::commit();
+            session()->flash('status', [
+                'type' => 'success',
+                'message' => 'খেদমত গ্রহণ করা সফল হয়েছে।'
+            ]);
+            if ($request->header('X-Inertia')) {
+                return redirect()->back();
+            }
             return response()->json([
                 'message' => 'খেদমত গ্রহণ করা সফল হয়েছে।'
             ]);
@@ -169,6 +175,13 @@ class FundCollectionController extends Controller
             //throw $th;
             DB::rollback();
             Log::error($e->getMessage());
+            session()->flash('status', [
+                'type' => 'danger',
+                'message' => 'খেদমত গ্রহণ করা যায়নি। '.$e->getMessage()
+            ]);
+            if ($request->header('X-Inertia')) {
+                return redirect()->back();
+            }
             return response()->json([
                 'message' => 'খেদমত গ্রহণ করা যায়নি। '.$e->getMessage()
             ]);
@@ -193,6 +206,9 @@ class FundCollectionController extends Controller
                 'type' => 'danger',
                 'message' => 'খেদমত বাতিল করা হয়েছে।'
             ]);
+            if (request()->header('X-Inertia')) {
+                return redirect()->back();
+            }
             return response()->json(['status' => 'danger', 'message' => 'খেদমত বাতিল করা হয়েছে।']);
 
         } catch (\Exception $e) {
@@ -208,14 +224,14 @@ class FundCollectionController extends Controller
     public function payIndex()
     {
         $pays = Pay::all();
-        return view('admin.fund_collection.pay.index', compact('pays'));
+        return Inertia::render('FundCollection/PayIndex', ['pays' => $pays]);
     }
 
     public function payCreate()
     {
         $khedmots = Khedmot::where('status', 1)->where('is_collected', 1)->get();
         $receives = Receive::where('status', 'collected')->get();
-        return view('admin.fund_collection.pay.pay', compact('khedmots', 'receives'));
+        return Inertia::render('FundCollection/PayCreate', ['khedmots' => $khedmots, 'receives' => $receives]);
     }
 
     public function pay(Request $request)
@@ -234,7 +250,7 @@ class FundCollectionController extends Controller
 
         try {
             // Start a database transaction
-            \DB::beginTransaction();
+            DB::beginTransaction();
 
             $paymentData['paid_by'] = Auth::user()->id;
             $paymentData['paid_at'] = now();
@@ -243,7 +259,7 @@ class FundCollectionController extends Controller
             Pay::create($paymentData);
 
             // Commit the transaction
-            \DB::commit();
+            DB::commit();
 
             // Redirect to the index page with a success message
             return redirect()->route('fund.pay.index')->with(
@@ -254,10 +270,10 @@ class FundCollectionController extends Controller
             );
         } catch (\Exception $e) {
             // Rollback the transaction if there is an error
-            \DB::rollback();
+            DB::rollback();
 
             // Log the error
-            \Log::error($e->getMessage());
+            Log::error($e->getMessage());
 
             // Redirect back with an error message
             return redirect()->route('fund.pay.index')->with('status', [

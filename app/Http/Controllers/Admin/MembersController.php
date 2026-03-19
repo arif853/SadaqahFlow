@@ -5,10 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Models\Member;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Laravel\Facades\Image;
+use Inertia\Inertia;
 
 
 class MembersController extends Controller
@@ -23,7 +23,7 @@ class MembersController extends Controller
         }else{
             $members = auth()->user()->members;
         }
-        return view('admin.memebrs.index',compact('members'));
+        return Inertia::render('Members/Index', ['members' => $members]);
     }
 
     /**
@@ -37,7 +37,7 @@ class MembersController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    
+
     public function store(Request $request)
     {
         $validatedData = $request->validate([
@@ -111,7 +111,7 @@ class MembersController extends Controller
     {
         $member = Member::findOrFail($id);
         $khedmots = $member->khedmots;
-        return view('admin.memebrs.show',compact('member', 'khedmots'));
+        return Inertia::render('Members/Show', ['member' => $member, 'khedmots' => $khedmots]);
     }
 
     /**
@@ -179,6 +179,9 @@ class MembersController extends Controller
         $member->update($validatedData);
         // $member->save();
         session()->flash('status', ['type' => 'success', 'message' => 'জাকের সফলভাবে আপডেট হয়েছে']);
+        if ($request->header('X-Inertia')) {
+            return redirect()->back();
+        }
         return response()->json(['status' => 'success', 'message' => 'জাকের সফলভাবে আপডেট হয়েছে']);
     }
 
@@ -200,6 +203,10 @@ class MembersController extends Controller
         }
 
         $member->delete();
+        session()->flash('status', ['type' => 'success', 'message' => 'জাকের সফলভাবে ডিলেট হয়েছে']);
+        if (request()->header('X-Inertia')) {
+            return redirect()->back();
+        }
         return response()->json(['status' => 'success', 'message' => 'জাকের সফলভাবে ডিলেট হয়েছে']);
     }
 

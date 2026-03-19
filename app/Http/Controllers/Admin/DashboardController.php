@@ -10,6 +10,7 @@ use App\Models\Receive;
 use App\Http\Controllers\Controller;
 use App\Models\Pay;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
@@ -17,7 +18,7 @@ class DashboardController extends Controller
     {
         $totalCentralFunds='';
         if (Auth::user()->getRoleNames()->contains('Super Admin') || Auth::user()->getRoleNames()->contains('Admin')) {
-            $khedmots = Khedmot::orderBy('created_at', 'desc')->limit(10)
+            $khedmots = Khedmot::with('member','user')->orderBy('created_at', 'desc')->limit(10)
             ->get();
             $totalMembers = Member::count();
 
@@ -40,7 +41,7 @@ class DashboardController extends Controller
 
         } else {
             $user = Auth::user();
-            $khedmots = Khedmot::where('user_id', $user->id)->orderBy('created_at', 'desc')->limit(10)->get();
+            $khedmots = Khedmot::with('member','user')->where('user_id', $user->id)->orderBy('created_at', 'desc')->limit(10)->get();
             $totalMembers = $user->members->count();
 
             $collectedKhedmots = $user->khedmots()->where('is_collected', true)->get();
@@ -59,29 +60,27 @@ class DashboardController extends Controller
         }
 
         $users = User::latest('created_at')->limit(10)->get();
-        $chartUsers = User::whereDoesntHave('roles', function($query) {
+        $chartUsers = User::with('khedmots')->whereDoesntHave('roles', function($query) {
             $query->where('name', 'Super Admin');
         })
         ->orderBy('id', 'desc')
         ->get();
 
-        return view('admin.dashboard', compact(
-            'users',
-            'khedmots',
-            'chartUsers',
-            'centralFunds',
-            'totalMembers',
-            'collectedKhedmots',
-            'nonCollectedKhedmots',
-            'totalKhedmotAmount',
-            'totalRentAmount',
-            'totalKalyanAmount',
-            'totalManatAmount',
-            'KhedmotAmount',
-            'RentAmount',
-            'KalyanAmount',
-            'ManatAmount',
-            'totalCentralFunds'
-        ));
+        return Inertia::render('Dashboard', [
+            'users' => $users,
+            'khedmots' => $khedmots,
+            'chartUsers' => $chartUsers,
+            'centralFunds' => $centralFunds,
+            'totalMembers' => $totalMembers,
+            'totalKhedmotAmount' => $totalKhedmotAmount,
+            'totalRentAmount' => $totalRentAmount,
+            'totalKalyanAmount' => $totalKalyanAmount,
+            'totalManatAmount' => $totalManatAmount,
+            'KhedmotAmount' => $KhedmotAmount,
+            'RentAmount' => $RentAmount,
+            'KalyanAmount' => $KalyanAmount,
+            'ManatAmount' => $ManatAmount,
+            'totalCentralFunds' => $totalCentralFunds,
+        ]);
     }
 }

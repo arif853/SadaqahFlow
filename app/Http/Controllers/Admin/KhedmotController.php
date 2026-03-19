@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Inertia\Inertia;
 
 class KhedmotController extends Controller
 {
@@ -26,7 +27,11 @@ class KhedmotController extends Controller
             $members = auth()->user()->members;
             $khedmots = Khedmot::with('member','program')->orderBy('date','desc')->where('user_id',auth()->user()->id)->get();
         }
-        return view('admin.khedmots.index',compact('khedmots','members','users'));
+        return Inertia::render('Khedmots/Index', [
+            'khedmots' => $khedmots,
+            'members' => $members,
+            'users' => $users
+        ]);
     }
 
     /**
@@ -145,6 +150,10 @@ class KhedmotController extends Controller
                 'message' => 'খেদমত আপডেট করা সফল হয়েছে।'
             ]);
 
+            if ($request->header('X-Inertia')) {
+                return redirect()->back();
+            }
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'খেদমত আপডেট করা সফল হয়েছে।'
@@ -172,6 +181,9 @@ class KhedmotController extends Controller
             'type' => 'success',
             'message' => 'খেদমত ডিলিট করা সফল হয়েছে।'
         ]);
+        if (request()->header('X-Inertia')) {
+            return redirect()->back();
+        }
         return response()->json(['status' => 'success', 'message' => 'খেদমত ডিলিট করা সফল হয়েছে।']);
     }
 

@@ -6,6 +6,7 @@ use App\Models\ProgramType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
+use Inertia\Inertia;
 
 class ProgramTypeController extends Controller
 {
@@ -16,7 +17,7 @@ class ProgramTypeController extends Controller
     {
         $programTypes = ProgramType::all();
 
-        return view('admin.program-type.index', compact('programTypes'));
+        return Inertia::render('ProgramTypes/Index', ['programTypes' => $programTypes]);
     }
 
     /**
@@ -94,6 +95,9 @@ class ProgramTypeController extends Controller
         $program->update($validatedData);
         // $member->save();
         session()->flash('status', ['type' => 'success', 'message' => 'অনুষ্ঠান সফলভাবে আপডেট হয়েছে']);
+        if ($request->header('X-Inertia')) {
+            return redirect()->back();
+        }
         return response()->json(['status' => 'success', 'message' => 'অনুষ্ঠান সফলভাবে আপডেট হয়েছে']);
     }
 
@@ -104,6 +108,10 @@ class ProgramTypeController extends Controller
     {
         $program = ProgramType::findOrFail($id);
         $program->delete();
+        session()->flash('status', ['type' => 'success', 'message' => 'অনুষ্ঠান টাইপ সফলভাবে ডিলেট হয়েছে']);
+        if (request()->header('X-Inertia')) {
+            return redirect()->back();
+        }
         return response()->json(['status' => 'success', 'message' => 'অনুষ্ঠান টাইপ সফলভাবে ডিলেট হয়েছে']);
     }
 

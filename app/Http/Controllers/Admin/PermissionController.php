@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Session;
 use Spatie\Permission\Models\Permission;
+use Inertia\Inertia;
 
 class PermissionController extends Controller
 {
@@ -15,7 +15,7 @@ class PermissionController extends Controller
     public function index()
     {
         $permissions = Permission::all();
-        return view('admin.users.permission.index',compact('permissions'));
+        return Inertia::render('Permissions/Index', ['permissions' => $permissions]);
     }
 
     /**
@@ -72,6 +72,10 @@ class PermissionController extends Controller
             'name' => strtolower($request->permission_name),
         ]);
 
+        session()->flash('status', ['type' => 'success', 'message' => 'Permission Updated Successfully.']);
+        if ($request->header('X-Inertia')) {
+            return redirect()->back();
+        }
         return response()->json(['status' => 'success', 'message' => 'Permission Updated Successfully.']);
     }
 
@@ -96,6 +100,11 @@ class PermissionController extends Controller
     {
         $permission = Permission::find($id);
         $permission->delete();
+
+        if (request()->header('X-Inertia')) {
+            session()->flash('status', ['type' => 'success', 'message' => 'Permission deleted successfully.']);
+            return redirect()->back();
+        }
 
         if (request()->ajax()) {
             return response()->json(['success' => 'Permission deleted successfully.']);

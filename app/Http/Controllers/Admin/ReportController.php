@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Models\ProgramType;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class ReportController extends Controller
 {
@@ -16,7 +17,7 @@ class ReportController extends Controller
     {
         $users = User::where('status', 1)->get();
         $programs = ProgramType::where('status', 1)->get();
-        return view('admin.reports.user-wise-report', compact('users', 'programs'));
+        return Inertia::render('Reports/UserWiseReport', ['users' => $users, 'programs' => $programs]);
     }
     public function userWiseReport(Request $request)
     {

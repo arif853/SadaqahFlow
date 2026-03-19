@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Inertia\Inertia;
 
 class RoleController extends Controller
 {
@@ -16,7 +17,7 @@ class RoleController extends Controller
     public function index()
     {
         $roles = Role::all();
-        return view('admin.users.role.index',['roles' => $roles]);
+        return Inertia::render('Roles/Index', ['roles' => $roles]);
     }
 
     /**
@@ -72,7 +73,10 @@ class RoleController extends Controller
             'name' => $request->role_name,
         ]);
 
-        Session::flash('success', 'Role Updated Successfully.');
+        session()->flash('status', ['type' => 'success', 'message' => 'Role Updated Successfully.']);
+        if ($request->header('X-Inertia')) {
+            return redirect()->back();
+        }
         return response()->json(['status' => 200]);
     }
     /**
@@ -122,7 +126,12 @@ class RoleController extends Controller
         // $rolePermission = $role->permissions->pluck('name');
         $rolePermission = $role->permissions;
 
-        return view('admin.users.give-role-permission',compact('role','permissions','groupedPermissions','rolePermission'));
+        return Inertia::render('Roles/GivePermission', [
+            'role' => $role,
+            'permissions' => $permissions,
+            'groupedPermissions' => $groupedPermissions,
+            'rolePermission' => $rolePermission
+        ]);
     }
 
     public function addPermissionToRole(Request $request, $roleId)
