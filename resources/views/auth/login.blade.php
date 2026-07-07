@@ -37,6 +37,8 @@
     <link href="{{asset('')}}assets/css/vendor/bootstrap.css" rel="stylesheet">
     <!-- Custom css-->
     <link href="{{asset('')}}assets/css/style.css" id="customstyle" rel="stylesheet">
+    <!-- Glassmorphism theme layer-->
+    <link href="{{asset('')}}assets/css/theme-glass.css" rel="stylesheet">
 </head>
 
 <body>

@@ -25,14 +25,6 @@
 </div>
 @endsection
 @section('content')
-<style>
-    .custome-card-bg {
-        background: #fbcccc !important;
-    }
-    .custome-card-bg-2{
-        background: #c0f08f  !important;
-    }
-</style>
 <div class="theme-body common-dash" data-simplebar>
     <div class="custom-container">
         <div class="row">
@@ -44,7 +36,7 @@
                 <div class="row">
                     @if (auth()->user()->getRoleNames()->contains('Super Admin') || auth()->user()->getRoleNames()->contains('Admin'))
                     <div class="col-12 col-sm-12 col-md-4 col-lg-3 col-xl-2">
-                        <div class="card project-status custome-card-bg-2">
+                        <div class="card project-status glass-accent-violet">
                             <div class="card-header">
                                 <h6>সর্বমোট(Cash Box) </h6>
                             </div>
@@ -60,7 +52,7 @@
                     </div>
                     @endif
                     <div class="col-6 col-sm-6 col-md-4 col-lg-3 col-xl-2">
-                        <div class="card project-status custome-card-bg">
+                        <div class="card project-status glass-accent-rose">
                             <div class="card-header">
                                 <h6>খেদমত(সংগ্রহ)</h6>
                             </div>
@@ -75,7 +67,7 @@
                         </div>
                     </div>
                     <div class="col-6 col-sm-6 col-md-4 col-lg-3 col-xl-2">
-                        <div class="card project-status custome-card-bg">
+                        <div class="card project-status glass-accent-rose">
                             <div class="card-header">
                                 <h6>মানত(সংগ্রহ)</h6>
 
@@ -90,7 +82,7 @@
                         </div>
                     </div>
                     <div class="col-6 col-sm-6 col-md-4 col-lg-3 col-xl-2">
-                        <div class="card project-status custome-card-bg">
+                        <div class="card project-status glass-accent-rose">
                             <div class="card-header">
                                 <h6>কল্যাণ(সংগ্রহ)</h6>
 
@@ -105,7 +97,7 @@
                         </div>
                     </div>
                     <div class="col-6 col-sm-6 col-md-4 col-lg-3 col-xl-2">
-                        <div class="card project-status custome-card-bg">
+                        <div class="card project-status glass-accent-rose">
                             <div class="card-header">
                                 <h6>ভাড়া(সংগ্রহ)</h6>
                             </div>

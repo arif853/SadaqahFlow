@@ -1,3 +1,0 @@
-$( "#datepicker" ).datepicker({
-		inline: true
-	});

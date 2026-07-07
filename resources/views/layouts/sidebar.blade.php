@@ -20,7 +20,7 @@
             <li class="cdxmenu-title">
                 <h5>হোম</h5>
             </li>
-            <li class="menu-item">
+            <li class="menu-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
                 <a href="{{route('dashboard')}}">
                     <div class="icon-item"><i data-feather="home"></i></div><span>ড্যাশবোর্ড</span>
                 </a>
@@ -30,7 +30,7 @@
                 <h5>অ্যাপ্লিকেশান</h5>
             </li>
             @can('view member')
-            <li class="menu-item">
+            <li class="menu-item {{ request()->routeIs('members.*') ? 'active' : '' }}">
                 <a href="{{route('members.index')}}">
                     <div class="icon-item">
                         <i data-feather="users"></i>
@@ -40,7 +40,7 @@
             </li>
             @endcan
             @canany(['view khedmot', 'view rent', 'view kollyan'])
-            <li class="menu-item">
+            <li class="menu-item {{ request()->routeIs('khedmots.*') ? 'active' : '' }}">
                 <a href="javascript:void(0);">
                     <div class="icon-item"><i data-feather="message-square"></i></div><span>খেদমত সংগ্রহ</span>
                     <i class="fa fa-angle-down"></i>
@@ -48,7 +48,7 @@
                 </a>
                 <ul class="submenu-list">
                     @can('view khedmot')
-                    <li><a href="{{route('khedmots.index')}}">খেদমত/মানত</a></li>
+                    <li class="{{ request()->routeIs('khedmots.*') ? 'active' : '' }}"><a href="{{route('khedmots.index')}}">খেদমত/মানত</a></li>
                     @endcan
                     @can('view rent')
                     <li><a href="javascript:void(0);">ভাড়া</a></li>
@@ -60,54 +60,54 @@
             </li>
             @endcan
             @can('view fund-collection')
-            <li class="menu-item">
+            <li class="menu-item {{ request()->routeIs('fund.*') ? 'active' : '' }}">
                 <a href="javascript:void(0);">
                     <div class="icon-item"><i data-feather="dollar-sign"></i></div><span>খেদমত লেনদেন</span>
                     <i class="fa fa-angle-down"></i>
                 </a>
                 <ul class="submenu-list">
-                    <li><a href="{{route('fund.receive.index')}}">খেদমত জমা </a></li>
+                    <li class="{{ request()->routeIs('fund.receive.*') ? 'active' : '' }}"><a href="{{route('fund.receive.index')}}">খেদমত জমা </a></li>
                     @hasanyrole('Super Admin| Admin')
-                    <li><a href="{{route('fund.pay.index')}}">খেদমত খরচ </a></li>
+                    <li class="{{ request()->routeIs('fund.pay.*') ? 'active' : '' }}"><a href="{{route('fund.pay.index')}}">খেদমত খরচ </a></li>
                     @endhasanyrole
                 </ul>
             </li>
             @endcan
             @can('view user')
-            <li class="menu-item">
+            <li class="menu-item {{ request()->routeIs(['users.*', 'roles.*', 'permissions.*']) ? 'active' : '' }}">
                 <a href="javascript:void(0);">
                     <div class="icon-item"> <i data-feather="user"></i></div><span>ম্যানেজ ইউজার </span><i
                         class="fa fa-angle-down"></i>
                 </a>
                 <ul class="submenu-list">
                     @can('view user')
-                    <li><a href="{{route('users.index')}}">ইউজার'স</a></li>
+                    <li class="{{ request()->routeIs('users.*') ? 'active' : '' }}"><a href="{{route('users.index')}}">ইউজার'স</a></li>
                     @endcan
                     @can('view role')
-                    <li><a href="{{route('roles.index')}}">রোল'স </a></li>
+                    <li class="{{ request()->routeIs('roles.*') ? 'active' : '' }}"><a href="{{route('roles.index')}}">রোল'স </a></li>
                     @endcan
                     @can('view permission')
-                    <li><a href="{{route('permissions.index')}}">পারমিশন</a></li>
+                    <li class="{{ request()->routeIs('permissions.*') ? 'active' : '' }}"><a href="{{route('permissions.index')}}">পারমিশন</a></li>
                     @endcan
                 </ul>
             </li>
             @endcan
 
             @can('view setting')
-            <li class="menu-item"><a href="javascript:void(0);">
+            <li class="menu-item {{ request()->routeIs('program-types.*') ? 'active' : '' }}"><a href="javascript:void(0);">
                     <div class="icon-item"> <i data-feather="user"></i></div><span>সেটিং </span><i
                         class="fa fa-angle-down"></i>
                 </a>
                 <ul class="submenu-list">
                     @can('view program')
-                    <li><a href="{{route('program-types.index')}}">অনুষ্ঠান ধরন</a></li>
+                    <li class="{{ request()->routeIs('program-types.*') ? 'active' : '' }}"><a href="{{route('program-types.index')}}">অনুষ্ঠান ধরন</a></li>
                     @endcan
                 </ul>
             </li>
             @endcan
 
             @can('view report')
-            <li class="menu-item">
+            <li class="menu-item {{ request()->routeIs('reports.*') ? 'active' : '' }}">
                 <a href="javascript:void(0);">
                     <div class="icon-item">
                         <i data-feather="user"></i>
@@ -116,7 +116,7 @@
                     <i class="fa fa-angle-down"></i>
                 </a>
                 <ul class="submenu-list">
-                    <li><a href="{{route('reports.index')}}">কর্মী রিপোর্ট</a></li>
+                    <li class="{{ request()->routeIs('reports.*') ? 'active' : '' }}"><a href="{{route('reports.index')}}">কর্মী রিপোর্ট</a></li>
 
                 </ul>
             </li>

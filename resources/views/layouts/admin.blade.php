@@ -30,9 +30,6 @@
     <link href="{{asset('')}}assets/css/vendor/font-awesome.css" rel="stylesheet">
     <!--Datatable-->
     <link href="{{asset('')}}assets/css/vendor/datatable/jquery.dataTables.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.datatables.net/fixedcolumns/4.3.0/css/fixedColumns.dataTables.min.css">
-    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.4.2/css/responsive.dataTables.min.css">
-    <link href="{{asset('')}}assets/css/vendor/datatable/buttons.dataTables.css" rel="stylesheet">
     <link href="{{asset('')}}assets/css/vendor/datatable/custom-datatable.css" rel="stylesheet">
     <!-- themify icon-->
     <link href="{{asset('')}}assets/css/vendor/themify-icons.css" rel="stylesheet">
@@ -48,6 +45,8 @@
     <link href="{{asset('')}}assets/css/vendor/bootstrap.css" rel="stylesheet">
     <!-- Custom css-->
     <link href="{{asset('')}}assets/css/style.css" id="customstyle" rel="stylesheet">
+    <!-- Glassmorphism theme layer-->
+    <link href="{{asset('')}}assets/css/theme-glass.css" rel="stylesheet">
 </head>
 
 <body>
@@ -127,27 +126,17 @@
     <!-- back to top end //-->
     <!-- main jquery-->
     <script src="{{asset('')}}assets/js/jquery-3.6.0.js"></script>
-    <!-- Theme Customizer-->
-    {{-- <script src="{{asset('')}}assets/js/layout-storage.js"></script> --}}
-    {{-- <script src="{{asset('')}}assets/js/customizer.js"></script> --}}
     <!-- Feather icons js-->
     <script src="{{asset('')}}assets/js/icons/feather-icon/feather.js"></script>
     <!-- Bootstrap js-->
     <script src="{{asset('')}}assets/js/bootstrap.bundle.min.js"></script>
     <!-- Scrollbar-->
     <script src="{{asset('')}}assets/js/vendors/simplebar.js"></script>
-    <!-- dashboard-->
-    {{-- <script src="{{asset('')}}assets/js/dashboard/dashboard.js"></script> --}}
     <!-- Notify-->
     <script src="{{asset('')}}assets/js/vendors/notify/bootstrap-notify.js"></script>
     <script src="{{asset('')}}assets/js/vendors/notify/bootstrap-customnotify.js"></script>
     {{-- dataTable --}}
     <script src="{{asset('')}}assets/js/vendors/datatable/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/fixedcolumns/4.3.0/js/dataTables.fixedColumns.min.js"></script>
-    <script src="https://cdn.datatables.net/responsive/2.4.2/js/dataTables.responsive.min.js"></script>
-    <script src="{{asset('')}}assets/js/vendors/datatable/dataTables.buttons.min.js"></script>
-    <script src="{{asset('')}}assets/js/vendors/datatable/buttons.print.min.js"></script>
-    <script src="{{asset('')}}assets/js/vendors/datatable/pdfmake.min.js"></script>
     <!-- select 2 js-->
     <script src="{{asset('')}}assets/js/vendors/select2/select2.min.js"></script>
     <script src="{{asset('')}}assets/js/vendors/select2/custom-select2.js"> </script>
