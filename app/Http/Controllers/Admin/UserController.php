@@ -43,12 +43,21 @@ class UserController extends Controller
 
     public function assignMember($id, Request $request)
     {
-        // dd($request->all());
-        foreach($request->members as $member){
-            $memberAssign = MemberAssign::updateOrCreate([
-                'user_id' => $id,
-                'member_id' => $member
-            ]);
+        $memberIds = collect($request->members)->map(fn ($memberId) => (int) $memberId)->unique()->values();
+
+        $alreadyAssignedIds = MemberAssign::where('user_id', $id)
+            ->whereIn('member_id', $memberIds)
+            ->pluck('member_id');
+
+        $newRows = $memberIds->diff($alreadyAssignedIds)->map(fn ($memberId) => [
+            'user_id' => $id,
+            'member_id' => $memberId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ])->values()->all();
+
+        if (!empty($newRows)) {
+            MemberAssign::insert($newRows);
         }
         session()->flash('status', ['type' => 'success', 'message' => 'সদস্য সফলভাবে যোগ করা হয়েছে']);
         return response()->json(['status' => 'success', 'message' => 'সদস্য সফলভাবে যোগ করা হয়েছে']);
@@ -115,36 +124,36 @@ class UserController extends Controller
     public function update(Request $request, string $id)
     {
         $user = User::findOrFail($id);
-        // dd($user);
-        if($user){
-            if($request->password == null){
-                $user->update([
-                    'name' => $request->name,
-                    'username' => $request->username,
-                    'address' => $request->address,
-                    'phone' => $request->phone,
-                    'email' => $request->email,
-                    'bloodType' => $request->bloodType,
-                ]);
-                $user->syncRoles($request->role);
-            }else{
-                $user->update([
-                    'name' => $request->name,
-                    'username' => $request->username,
-                    'address' => $request->address,
-                    'phone' => $request->phone,
-                    'email' => $request->email,
-                    'bloodType' => $request->bloodType,
-                    'password' => Hash::make($request->password),
-                ]);
-                $user->syncRoles($request->role);
-            }
-            session()->flash('status', ['type' => 'success', 'message' => 'ইউজার সফলভাবে আপডেট হয়েছে']);
-            return response()->json(['status' => 'success', 'message' => 'ইউজার সফলভাবে আপডেট হয়েছে']);
-        }else{
-            session()->flash('status', ['type' => 'danger', 'message' => 'ইউজার আপডেট সফলভাবে হয়নি']);
-            return response()->json(['status' => 'danger', 'message' => 'ইউজার আপডেট সফলভাবে হয়নি']);
+
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'username' => 'required|string|max:255|unique:users,username,' . $user->id,
+            'address' => 'nullable|string|max:255',
+            'phone' => 'required|string|min:8|max:15',
+            'email' => 'nullable|email|max:255|unique:users,email,' . $user->id,
+            'bloodType' => 'nullable|string|max:3',
+            'password' => 'nullable|string|min:6',
+            'role' => 'required',
+        ]);
+
+        $data = [
+            'name' => $request->name,
+            'username' => $request->username,
+            'address' => $request->address,
+            'phone' => $request->phone,
+            'email' => $request->email,
+            'bloodType' => $request->bloodType,
+        ];
+
+        if (!empty($request->password)) {
+            $data['password'] = Hash::make($request->password);
         }
+
+        $user->update($data);
+        $user->syncRoles($request->role);
+
+        session()->flash('status', ['type' => 'success', 'message' => 'ইউজার সফলভাবে আপডেট হয়েছে']);
+        return response()->json(['status' => 'success', 'message' => 'ইউজার সফলভাবে আপডেট হয়েছে']);
     }
 
     /**

@@ -18,7 +18,7 @@ class MembersController extends Controller
      */
     public function index()
     {
-        if(auth()->user()->hasRole(['Super Admin','Admin'])){
+        if(auth()->user()->isAdminLevel()){
             $members = Member::orderBy('id','desc')->get();
         }else{
             $members = auth()->user()->members;
@@ -132,7 +132,7 @@ class MembersController extends Controller
         $member = Member::findOrFail($id);
 
         // Authorization check: only admins or assigned users can update
-        if (!auth()->user()->hasRole(['Super Admin', 'Admin'])) {
+        if (!auth()->user()->isAdminLevel()) {
             $hasAccess = $member->memberAssigns()->where('user_id', auth()->id())->exists();
             if (!$hasAccess) {
                 abort(403, 'Unauthorized action.');
@@ -190,7 +190,7 @@ class MembersController extends Controller
         $member = Member::findOrFail($id);
 
         // Authorization check: only admins can delete
-        if (!auth()->user()->hasRole(['Super Admin', 'Admin'])) {
+        if (!auth()->user()->isAdminLevel()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -208,7 +208,7 @@ class MembersController extends Controller
         $member = Member::findOrFail($id);
 
         // Authorization check: only admins can change status
-        if (!auth()->user()->hasRole(['Super Admin', 'Admin'])) {
+        if (!auth()->user()->isAdminLevel()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -226,7 +226,7 @@ class MembersController extends Controller
         $term = strip_tags($request->input('term')); // Remove HTML tags
         $term = htmlspecialchars($term, ENT_QUOTES, 'UTF-8'); // Prevent XSS
 
-        if (auth()->user()->hasRole(['Super Admin', 'Admin'])) {
+        if (auth()->user()->isAdminLevel()) {
             // Admins: Search across all members
             $members = Member::where('name', 'like', '%' . $term . '%')
                 ->orWhere('kollan_id', 'like', '%' . $term . '%')

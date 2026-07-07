@@ -8,7 +8,6 @@ use App\Models\Khedmot;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use App\Models\ProgramType;
-use Illuminate\Support\Facades\Auth;
 
 class ReportController extends Controller
 {
@@ -37,40 +36,12 @@ class ReportController extends Controller
             $user = User::where('status', 1)->where('id', $userID)->first();
         }
 
-        $khedmots = Khedmot::query();
-        if(Auth::user()->hasRole(['Super Admin','Admin'])){
-            if (!empty($date)) {
-                $khedmots->where('date', $date);
-            }
-            if (!empty($name)) {
-                $khedmots->whereHas('member', function ($query) use ($name) {
-                    $query->where('name', 'like', '%' . $name . '%')
-                    ->orWhere('kollan_id', 'like', '%' . $name . '%');
-                });
-            }
-            if (!empty($userID)) {
-                $khedmots->where('user_id', $userID);
-            }
-            $khedmots = $khedmots->with('member','user','program')
-                        ->where('program_id', $program->id)
-                        ->orderBy('date','desc')
-                        ->get();
-        }else{
-            if (!empty($date)) {
-                $khedmots->where('date', $date);
-            }
-            if (!empty($name)) {
-                $khedmots->whereHas('member', function ($query) use ($name) {
-                    $query->where('name', 'like', '%' . $name . '%')
-                    ->orWhere('kollan_id', 'like', '%' . $name . '%');
-                });
-            }
-            $khedmots = $khedmots->with('member','user','program')
-                        ->where('program_id', $program->id)
-                        ->orderBy('date','desc')
-                        ->where('user_id',auth()->user()->id)
-                        ->get();
-        }
+        $khedmots = Khedmot::with('member','user','program')
+            ->filterBy($date, $name)
+            ->when($program, fn ($query) => $query->where('program_id', $program->id))
+            ->visibleTo(auth()->user(), $userID)
+            ->orderBy('date','desc')
+            ->get();
 
         // Generate PDF and return download
         $pdf = PDF::loadView('admin.reports.user-report', compact('khedmots','user'));
@@ -92,40 +63,12 @@ class ReportController extends Controller
             $program = ProgramType::where('status', 1)->where('id', $programID)->first();
         }
 
-        $khedmots = Khedmot::query();
-        if(Auth::user()->hasRole(['Super Admin','Admin'])){
-            if (!empty($date)) {
-                $khedmots->where('date', $date);
-            }
-            if (!empty($name)) {
-                $khedmots->whereHas('member', function ($query) use ($name) {
-                    $query->where('name', 'like', '%' . $name . '%')
-                    ->orWhere('kollan_id', 'like', '%' . $name . '%');
-                });
-            }
-            if (!empty($userID)) {
-                $khedmots->where('user_id', $userID);
-            }
-            $khedmots = $khedmots->with('member','user','program')
-                        ->where('program_id', $program->id)
-                        ->orderBy('date','desc')
-                        ->get();
-        }else{
-            if (!empty($date)) {
-                $khedmots->where('date', $date);
-            }
-            if (!empty($name)) {
-                $khedmots->whereHas('member', function ($query) use ($name) {
-                    $query->where('name', 'like', '%' . $name . '%')
-                    ->orWhere('kollan_id', 'like', '%' . $name . '%');
-                });
-            }
-            $khedmots = $khedmots->with('member','user','program')
-                        ->where('program_id', $program->id)
-                        ->orderBy('date','desc')
-                        ->where('user_id',auth()->user()->id)
-                        ->get();
-        }
+        $khedmots = Khedmot::with('member','user','program')
+            ->filterBy($date, $name)
+            ->when($program, fn ($query) => $query->where('program_id', $program->id))
+            ->visibleTo(auth()->user(), $userID)
+            ->orderBy('date','desc')
+            ->get();
 
         // return under both keys to be compatible with existing JS
         return response()->json(['khedmots' => $khedmots]);

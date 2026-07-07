@@ -8,7 +8,6 @@ use App\Models\Khedmot;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class KhedmotController extends Controller
@@ -18,14 +17,14 @@ class KhedmotController extends Controller
      */
     public function index()
     {
+        abort_unless(auth()->user()->can('view khedmot'), 403);
+        $user = auth()->user();
         $users = User::where('status',1)->get();
-        if(Auth::user()->hasRole(['Super Admin','Admin'])){
-            $members = Member::where('status',1)->get();
-            $khedmots = Khedmot::with('member','program')->orderBy('date','desc')->get();
-        }else{
-            $members = auth()->user()->members;
-            $khedmots = Khedmot::with('member','program')->orderBy('date','desc')->where('user_id',auth()->user()->id)->get();
-        }
+        $members = $user->isAdminLevel() ? Member::where('status',1)->get() : $user->members;
+        $khedmots = Khedmot::with('member','user','program')
+            ->visibleTo($user)
+            ->orderBy('date','desc')
+            ->get();
         return view('admin.khedmots.index',compact('khedmots','members','users'));
     }
 
@@ -42,16 +41,20 @@ class KhedmotController extends Controller
      */
     public function store(Request $request)
     {
+        abort_unless(auth()->user()->can('create khedmot'), 403);
         try {
             DB::beginTransaction();
             $request->validate([
                 'date' => 'required|date',
+                'member_id' => 'required|exists:members,id',
                 'program_id' => 'required|exists:program_types,id',
                 'khedmot_amount' => 'nullable|numeric|min:0',
                 'manat_amount' => 'nullable|numeric|min:0',
 
             ], [
                 'date.required' => 'তারিখ প্রয়োজন',
+                'member_id.required' => 'জাকের নির্বাচন করা প্রয়োজন',
+                'member_id.exists' => 'জাকের খুঁজে পাওয়া যায়নি',
                 'program_id.required' => 'প্রোগ্রামের নাম প্রয়োজন',
                 'khedmot_amount.required' => 'খেদমত পরিমাণ প্রয়োজন',
                 'khedmot_amount.numeric' => 'খেদমত পরিমাণ সংখ্যা হতে হবে',
@@ -106,6 +109,7 @@ class KhedmotController extends Controller
      */
     public function show(string $id)
     {
+        abort_unless(auth()->user()->can('show khedmot'), 403);
         $khedmot = Khedmot::with('member','user','program')->findOrFail($id);
         return response()->json($khedmot);
     }
@@ -115,6 +119,7 @@ class KhedmotController extends Controller
      */
     public function edit(string $id)
     {
+        abort_unless(auth()->user()->can('update khedmot'), 403);
         $khedmot = Khedmot::findOrFail($id);
         return response()->json($khedmot);
     }
@@ -124,22 +129,35 @@ class KhedmotController extends Controller
      */
     public function update(Request $request, string $id)
     {
+        abort_unless(auth()->user()->can('update khedmot'), 403);
         try {
             $khedmot = Khedmot::findOrFail($id);
             $request->validate([
                 'date' => 'required|date',
+                'member_id' => 'required|exists:members,id',
                 'program_id' => 'required|exists:program_types,id',
-                'khedmot_amount' => 'required|numeric|min:0',
+                'khedmot_amount' => 'nullable|numeric|min:0',
+                'manat_amount' => 'nullable|numeric|min:0',
 
                 ], [
                     'date.required' => 'তারিখ প্রয়োজন',
+                    'member_id.required' => 'জাকের নির্বাচন করা প্রয়োজন',
+                    'member_id.exists' => 'জাকের খুঁজে পাওয়া যায়নি',
                     'program_id.required' => 'প্রোগ্রামের নাম প্রয়োজন',
-                    'khedmot_amount.required' => 'খেদমত পরিমাণ প্রয়োজন',
                     'khedmot_amount.numeric' => 'খেদমত পরিমাণ সংখ্যা হতে হবে',
                     'khedmot_amount.min' => 'খেদমত পরিমাণ ০ এর চেয়ে বেশি হতে হবে',
+                    'manat_amount.numeric' => 'মানত পরিমাণ সংখ্যা হতে হবে',
+                    'manat_amount.min' => 'মানত পরিমাণ ০ এর চেয়ে বেশি হতে হবে',
                 ]);
-            $request->except('_token', '_method');
-            $khedmot->update($request->all());
+            $khedmot->update([
+                'date' => $request->date,
+                'member_id' => $request->member_id,
+                'program_id' => $request->program_id,
+                'other_program_name' => $request->other_program_name,
+                'khedmot_amount' => $request->khedmot_amount,
+                'manat_amount' => $request->manat_amount,
+                'comment' => $request->comment,
+            ]);
             session()->flash('status', [
                 'type' => 'success',
                 'message' => 'খেদমত আপডেট করা সফল হয়েছে।'
@@ -166,7 +184,29 @@ class KhedmotController extends Controller
      */
     public function destroy(string $id)
     {
+        abort_unless(auth()->user()->can('delete khedmot'), 403);
         $khedmot = Khedmot::findOrFail($id);
+
+        if ($khedmot->is_collected) {
+            return response()->json([
+                'status' => 'danger',
+                'message' => 'এই খেদমতটি ইতিমধ্যে জমা হিসেবে গৃহীত হয়েছে, তাই মুছে ফেলা যাবে না।',
+            ]);
+        }
+
+        $isReferencedInReceive = \App\Models\Receive::where('status', '<>', 'canceled')
+            ->get(['khedmot_ids'])
+            ->contains(function ($receive) use ($id) {
+                return in_array((string) $id, array_map('trim', explode(',', $receive->khedmot_ids ?? '')), true);
+            });
+
+        if ($isReferencedInReceive) {
+            return response()->json([
+                'status' => 'danger',
+                'message' => 'এই খেদমতটি একটি পেন্ডিং জমার সাথে যুক্ত, তাই মুছে ফেলা যাবে না।',
+            ]);
+        }
+
         $khedmot->delete();
         session()->flash('status', [
             'type' => 'success',
@@ -177,46 +217,19 @@ class KhedmotController extends Controller
 
     public function search(Request $request)
     {
-        // dd($request->all());
-        $date = $request->date;
-        $name = $request->name;
-        $userID = $request->userid;
-        $khedmots = Khedmot::query();
-        if(Auth::user()->hasRole(['Super Admin','Admin'])){
-            if (!empty($date)) {
-                $khedmots->where('date', $date);
-            }
-            if (!empty($name)) {
-                $khedmots->whereHas('member', function ($query) use ($name) {
-                    $query->where('name', 'like', '%' . $name . '%')
-                    ->orWhere('kollan_id', 'like', '%' . $name . '%');
-                });
-            }
-            if (!empty($userID)) {
-                $khedmots->where('user_id', $userID);
-            }
-            $khedmots = $khedmots->with('member','user','program')->orderBy('date','desc')->get();
-        }else{
-            if (!empty($date)) {
-                $khedmots->where('date', $date);
-            }
-            if (!empty($name)) {
-                $khedmots->whereHas('member', function ($query) use ($name) {
-                    $query->where('name', 'like', '%' . $name . '%')
-                    ->orWhere('kollan_id', 'like', '%' . $name . '%');
-                });
-            }
-            $khedmots = $khedmots->with('member','user','program')
+        abort_unless(auth()->user()->can('view khedmot'), 403);
+        $khedmots = Khedmot::with('member','user','program')
+            ->filterBy($request->date, $request->name)
+            ->visibleTo(auth()->user(), $request->userid)
             ->orderBy('date','desc')
-            ->where('user_id',auth()->user()->id)
             ->get();
-        }
 
         return response()->json($khedmots);
     }
 
     public function kolyanStore(Request $request)
     {
+        abort_unless(auth()->user()->can('create khedmot'), 403);
         try {
             DB::beginTransaction();
             $request->validate([
@@ -263,6 +276,7 @@ class KhedmotController extends Controller
 
     public function kolyanUpdate(Request $request, string $id)
     {
+        abort_unless(auth()->user()->can('update khedmot'), 403);
         try {
             $khedmot = Khedmot::findOrFail($id);
             $request->validate([
@@ -274,8 +288,11 @@ class KhedmotController extends Controller
                     'kalyan_amount.numeric' => 'কল্যাণ পরিমাণ সংখ্যা হতে হবে',
                     'kalyan_amount.min' => 'কল্যাণ পরিমাণ ০ এর চেয়ে বেশি হতে হবে',
                 ]);
-            $request->except('_token', '_method');
-            $khedmot->update($request->all());
+            $khedmot->update([
+                'date' => $request->date,
+                'kalyan_amount' => $request->kalyan_amount,
+                'comment' => $request->comment,
+            ]);
             session()->flash('status', [
                 'type' => 'success',
                 'message' => 'কল্যাণ আপডেট করা সফল হয়েছে।'
@@ -299,6 +316,7 @@ class KhedmotController extends Controller
 
     public function rentStore(Request $request)
     {
+        abort_unless(auth()->user()->can('create khedmot'), 403);
         try {
             DB::beginTransaction();
             $request->validate([
@@ -342,6 +360,7 @@ class KhedmotController extends Controller
 
     public function rentUpdate(Request $request, string $id)
     {
+        abort_unless(auth()->user()->can('update khedmot'), 403);
         try {
             $khedmot = Khedmot::findOrFail($id);
             $request->validate([
@@ -353,8 +372,11 @@ class KhedmotController extends Controller
                     'rent_amount.numeric' => 'ভাড়া পরিমাণ সংখ্যা হতে হবে',
                     'rent_amount.min' => 'ভাড়া পরিমাণ 0 এর চেয়ে বেশি হতে হবে',
                 ]);
-            $request->except('_token', '_method');
-            $khedmot->update($request->all());
+            $khedmot->update([
+                'date' => $request->date,
+                'rent_amount' => $request->rent_amount,
+                'comment' => $request->comment,
+            ]);
             session()->flash('status', [
                 'type' => 'success',
                 'message' => 'ভাড়া আপডেট করা সফল হয়েছে।'

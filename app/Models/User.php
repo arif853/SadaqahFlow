@@ -103,4 +103,14 @@ class User extends Authenticatable
         return $this->hasRole('Admin');
     }
 
+    /**
+     * Whether the user has elevated (Super Admin or Admin) access,
+     * used throughout the admin controllers to decide between
+     * seeing all records vs only records scoped to this user.
+     */
+    public function isAdminLevel(): bool
+    {
+        return $this->isSuperAdmin() || $this->isAdmin();
+    }
+
 }

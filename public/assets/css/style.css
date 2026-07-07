@@ -93,8 +93,8 @@ p {
 .themebody-wrap {
      -webkit-padding-after: 10px;
      padding-block-end: 10px;
-     -webkit-margin-before: 79px;
-     margin-block-start: 79px;
+     -webkit-margin-before: 90px;
+     margin-block-start: 90px;
      -webkit-margin-start: 270px;
      margin-inline-start: 270px;
      min-height: calc(100vh - 135px);
@@ -8468,7 +8468,7 @@ ul.codex-soclist li:hover a i {
 
 .codex-breadcrumb {
      padding: 15px 25px;
-     -webkit-margin-after: 25px;
+     -webkit-margin-after: 15px;
      margin-block-end: 25px;
      background-color: #fff;
      -webkit-box-shadow: 0 0 20px 5px rgba(5, 23, 34, .05);

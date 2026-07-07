@@ -16,7 +16,7 @@ class DashboardController extends Controller
     public function index()
     {
         $totalCentralFunds='';
-        if (Auth::user()->getRoleNames()->contains('Super Admin') || Auth::user()->getRoleNames()->contains('Admin')) {
+        if (Auth::user()->isAdminLevel()) {
             $khedmots = Khedmot::orderBy('created_at', 'desc')->limit(10)
             ->get();
             $totalMembers = Member::count();

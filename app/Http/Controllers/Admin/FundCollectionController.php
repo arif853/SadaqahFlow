@@ -21,18 +21,22 @@ class FundCollectionController extends Controller
      */
     public function receiveIndex()
     {
-        if (Auth::user()->getRoleNames()->contains('Super Admin') || Auth::user()->getRoleNames()->contains('Admin')) {
-            $fundCollections = Receive::orderBy('created_at', 'desc')->get();
-            foreach ($fundCollections as $fundCollection) {
-                $fundCollection->khedmots = Khedmot::whereIn('id', explode(',', $fundCollection->khedmot_ids))->get();
-            }
-        }else{
-            $user = Auth::user();
-            $fundCollections = Receive::orderBy('created_at', 'desc')->where('submitted_by', $user->id)->get();
-            foreach ($fundCollections as $fundCollection) {
-                $fundCollection->khedmots = Khedmot::whereIn('id', explode(',', $fundCollection->khedmot_ids))->get();
-            }
+        $user = Auth::user();
+        $fundCollections = Receive::orderBy('created_at', 'desc')
+            ->when(!$user->isAdminLevel(), fn ($query) => $query->where('submitted_by', $user->id))
+            ->get();
+
+        $khedmotIds = $fundCollections
+            ->flatMap(fn ($fundCollection) => array_filter(array_map('trim', explode(',', $fundCollection->khedmot_ids ?? ''))))
+            ->unique()
+            ->values();
+        $khedmotsById = Khedmot::whereIn('id', $khedmotIds)->get()->keyBy('id');
+
+        foreach ($fundCollections as $fundCollection) {
+            $ids = array_filter(array_map('trim', explode(',', $fundCollection->khedmot_ids ?? '')));
+            $fundCollection->khedmots = $khedmotsById->only($ids)->values();
         }
+
         return view('admin.fund_collection.receive.index', compact('fundCollections'));
     }
 
@@ -52,7 +56,7 @@ class FundCollectionController extends Controller
                     return array_map('trim', explode(',', $ids));
                 })->unique()->values()->toArray();
 
-        if (Auth::user()->getRoleNames()->contains('Super Admin') || Auth::user()->getRoleNames()->contains('Admin')) {
+        if ($user->isAdminLevel()) {
             if (!empty($requestedIds)) {
                 $khedmots = $khedmotsQuery->whereNotIn('id', $requestedIds)->get();
             } else {
@@ -136,8 +140,8 @@ class FundCollectionController extends Controller
                 'is_collected' => true,
             ]);
 
-            foreach ($khedmotIds as $khedmotId) {
-                $khedmot = Khedmot::find($khedmotId);
+            $khedmotsToNotify = Khedmot::with('member', 'program')->whereIn('id', $khedmotIds)->get();
+            foreach ($khedmotsToNotify as $khedmot) {
                 $member = $khedmot->member;
                 $kalyanid = $member->kollan_id;
                 $khedmotAmount = $khedmot->khedmot_amount> 0 ? 'খেদমতঃ'.$khedmot->khedmot_amount : '';
