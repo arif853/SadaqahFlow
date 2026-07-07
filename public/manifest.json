@@ -5,8 +5,8 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#FFFFFF",
-  "theme_color": "#000000",
+  "background_color": "#eef1fb",
+  "theme_color": "#eef1fb",
   "description": "CPDS-DK-BS Mobile Application",
   "icons": [
     {

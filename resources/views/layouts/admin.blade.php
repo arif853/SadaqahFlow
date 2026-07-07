@@ -10,7 +10,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#000000"/>
+    <meta name="theme-color" content="#eef1fb"/>
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -121,6 +121,36 @@
         <p>Copyright 2024-2025 © CPDS-DK-BS, All rights reserved.</p>
     </footer>
     <!-- footer end-->
+    <!-- mobile bottom tab bar start-->
+    <nav class="mobile-tabbar">
+        <a href="{{ route('dashboard') }}" class="tabbar-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+            <i data-feather="home"></i>
+            <span>হোম</span>
+        </a>
+        @can('view member')
+        <a href="{{ route('members.index') }}" class="tabbar-item {{ request()->routeIs('members.*') ? 'active' : '' }}">
+            <i data-feather="users"></i>
+            <span>জাকের</span>
+        </a>
+        @endcan
+        @can('view khedmot')
+        <a href="{{ route('khedmots.index') }}" class="tabbar-item {{ request()->routeIs('khedmots.*') ? 'active' : '' }}">
+            <i data-feather="message-square"></i>
+            <span>খেদমত</span>
+        </a>
+        @endcan
+        @can('view fund-collection')
+        <a href="{{ route('fund.receive.index') }}" class="tabbar-item {{ request()->routeIs('fund.*') ? 'active' : '' }}">
+            <i data-feather="dollar-sign"></i>
+            <span>লেনদেন</span>
+        </a>
+        @endcan
+        <a href="javascript:void(0);" class="tabbar-item sidebar-action">
+            <i data-feather="menu"></i>
+            <span>মেনু</span>
+        </a>
+    </nav>
+    <!-- mobile bottom tab bar end-->
     <!-- back to top start //-->
     <div class="scroll-top"><i class="fa fa-angle-double-up"></i></div>
     <!-- back to top end //-->

@@ -47,6 +47,31 @@ body {
     min-height: 100vh;
 }
 
+/* ---------- App-like touch polish ---------- */
+
+a, button, .btn, .navicon-wrap, .tabbar-item {
+    -webkit-tap-highlight-color: transparent;
+}
+
+@media screen and (max-width: 991px) {
+    /* iOS Safari auto-zooms on focusing an input smaller than 16px */
+    .form-control,
+    .form-select,
+    .select2-container .select2-selection--single {
+        font-size: 16px !important;
+    }
+
+    /* keep icon-only action buttons at a comfortable tap-target size */
+    .btn-md.btn-outline-primary,
+    .btn-md.btn-outline-warning,
+    .btn-md.btn-outline-info,
+    .btn-md.btn-outline-danger,
+    .btn-md.btn-outline-success {
+        min-width: 40px;
+        min-height: 40px;
+    }
+}
+
 /* ---------- Scrollbars ---------- */
 
 [data-simplebar] .simplebar-scrollbar::before {
@@ -407,19 +432,217 @@ body.daactive-sidebar .codex-sidebar:not(:hover) .codex-menu li > a {
     color: var(--glass-primary-dark) !important;
 }
 
-/* ---------- SweetAlert2 ---------- */
+/* ---------- Mobile bottom-sheet modals ---------- */
+
+@media screen and (max-width: 575px) {
+    .modal-dialog {
+        margin: 0;
+        display: flex;
+        align-items: flex-end;
+        min-height: 100vh;
+        max-width: 100%;
+    }
+
+    .modal.fade .modal-dialog {
+        transition: transform 0.3s ease-out;
+        transform: translateY(100%);
+    }
+
+    .modal.show .modal-dialog {
+        transform: translateY(0);
+    }
+
+    .modal-content {
+        width: 100%;
+        max-height: 88vh;
+        border-radius: var(--glass-radius-lg) var(--glass-radius-lg) 0 0 !important;
+        overflow-y: auto;
+    }
+
+    .modal-body {
+        padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    }
+}
+
+/* ----------------------------------------------------------------
+ * SweetAlert2
+ * Fixed, semantic colors on purpose (not tied to --glass-primary/
+ * --glass-secondary) — those are the app's brand accent and can be
+ * retuned freely, but a warning/danger/success alert needs a stable
+ * color meaning regardless of the current brand palette.
+ * ---------------------------------------------------------------- */
 
 .swal2-popup {
     background: var(--glass-surface-strong) !important;
     -webkit-backdrop-filter: blur(var(--glass-blur));
     backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
     border-radius: var(--glass-radius-lg) !important;
-    box-shadow: var(--glass-shadow-lg);
+    box-shadow: var(--glass-shadow-lg), var(--glass-shadow-inset);
+    padding: 28px 24px 24px;
 }
 
+.swal2-title {
+    color: var(--glass-ink) !important;
+    font-weight: 600;
+    padding: 0.4em 0 0.2em;
+}
+
+.swal2-html-container {
+    color: var(--glass-muted) !important;
+}
+
+/* Icon rings: fixed semantic hues, softened to match the glass aesthetic */
+.swal2-icon.swal2-warning {
+    border-color: rgba(245, 158, 11, 0.35) !important;
+    color: #f59e0b !important;
+}
+
+.swal2-icon.swal2-error {
+    border-color: rgba(239, 68, 68, 0.35) !important;
+    color: #ef4444 !important;
+}
+
+.swal2-icon.swal2-error [class^='swal2-x-mark-line'] {
+    background-color: #ef4444 !important;
+}
+
+.swal2-icon.swal2-success {
+    border-color: rgba(16, 185, 129, 0.35) !important;
+    color: #10b981 !important;
+}
+
+.swal2-icon.swal2-success [class^='swal2-success-line'] {
+    background-color: #10b981 !important;
+}
+
+.swal2-icon.swal2-success .swal2-success-ring {
+    border-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+.swal2-icon.swal2-question {
+    border-color: rgba(99, 102, 241, 0.35) !important;
+    color: #6366f1 !important;
+}
+
+.swal2-icon.swal2-info {
+    border-color: rgba(14, 165, 233, 0.35) !important;
+    color: #0ea5e9 !important;
+}
+
+/* Buttons: one confident confirm style + a soft, non-alarming cancel —
+   overrides the per-call-site inline confirmButtonColor/cancelButtonColor
+   (an !important stylesheet rule wins over inline style). */
 .swal2-styled.swal2-confirm {
-    background: linear-gradient(120deg, var(--glass-primary), var(--glass-primary-dark)) !important;
+    background: linear-gradient(120deg, #6366f1, #4338ca) !important;
     border-radius: var(--glass-radius-sm) !important;
+    padding: 0.65em 1.6em !important;
+    font-weight: 500;
+    box-shadow: 0 10px 22px rgba(67, 56, 202, 0.32) !important;
+}
+
+.swal2-styled.swal2-confirm:focus {
+    box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.3) !important;
+}
+
+.swal2-styled.swal2-cancel {
+    background: rgba(148, 158, 196, 0.14) !important;
+    color: var(--glass-ink) !important;
+    border-radius: var(--glass-radius-sm) !important;
+    padding: 0.65em 1.6em !important;
+    font-weight: 500;
+    box-shadow: none !important;
+}
+
+.swal2-styled.swal2-cancel:hover {
+    background: rgba(239, 68, 68, 0.12) !important;
+    color: #ef4444 !important;
+}
+
+.swal2-styled.swal2-cancel:focus {
+    box-shadow: 0 0 0 0.2rem rgba(148, 158, 196, 0.25) !important;
+}
+
+@media screen and (max-width: 575px) {
+    .swal2-popup {
+        width: 92vw !important;
+        padding: 24px 18px 20px;
+    }
+
+    .swal2-actions {
+        width: 100%;
+    }
+
+    .swal2-styled.swal2-confirm,
+    .swal2-styled.swal2-cancel {
+        flex: 1;
+        padding: 0.75em 1em !important;
+    }
+}
+
+/* ---------- Mobile bottom tab bar (app-like nav on small screens) ---------- */
+
+.mobile-tabbar {
+    display: none;
+}
+
+@media screen and (max-width: 991px) {
+    .themebody-wrap {
+        padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .mobile-tabbar {
+        display: flex;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 3;
+        background-color: var(--glass-surface-strong);
+        -webkit-backdrop-filter: blur(var(--glass-blur));
+        backdrop-filter: blur(var(--glass-blur));
+        border-top: 1px solid var(--glass-border);
+        box-shadow: 0 -8px 28px rgba(31, 41, 82, 0.12);
+        padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+        justify-content: space-around;
+        align-items: stretch;
+    }
+
+    .mobile-tabbar .tabbar-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        flex: 1;
+        min-width: 0;
+        padding: 6px 2px;
+        margin: 0 2px;
+        border-radius: var(--glass-radius-sm);
+        color: var(--glass-muted);
+        font-size: 11px;
+        line-height: 1.1;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: all 0.2s ease;
+    }
+
+    .mobile-tabbar .tabbar-item i {
+        width: 20px;
+        height: 20px;
+    }
+
+    .mobile-tabbar .tabbar-item.active {
+        color: #fff;
+        background: linear-gradient(120deg, var(--glass-primary), var(--glass-primary-dark));
+        box-shadow: 0 6px 16px rgba(91, 110, 245, 0.3);
+    }
+}
+
+@media screen and (min-width: 992px) {
+    .mobile-tabbar {
+        display: none !important;
+    }
 }
 
 /* ---------- Login page ---------- */
