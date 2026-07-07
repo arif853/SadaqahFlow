@@ -53,6 +53,16 @@
                                 <label for="searchInput2">খেদমত খুঁজুন</label>
                                 <input type="text" class="form-control" placeholder="যাকের নাম / কল্যাণ নাম্বার খুঁজুন" id="searchInput2">
                             </div>
+
+                            <div class="col-12 col-sm-12 col-md-3 col-lg-3 col-xl-3 col-xxl-3 mb-10">
+                                <label for="searchInputProgram">অনুষ্ঠান দিয়ে খুঁজুন</label>
+                                <select class="form-control" id="searchInputProgram">
+                                    <option value="">সকল অনুষ্ঠান</option>
+                                    @foreach ($programTypes as $programType)
+                                        <option value="{{$programType->id}}">{{ $programType->name }}{{ $programType->status ? ' (সক্রিয়)' : '' }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
                             @if (Auth::user()->hasRole(['Super Admin','Admin']))
                             <div class="col-12 col-sm-12 col-md-3 col-lg-3 col-xl-3 col-xxl-3 mb-10">
                                 <label for="searchInput3">কর্মী দিয়ে খুঁজুন</label>
@@ -495,23 +505,31 @@
             // Debounced search function (300ms delay)
             const debouncedSearch = debounce(performSearch, 300);
 
+            // Gather every active filter so they combine instead of overriding each other
+            function gatherFilters() {
+                return {
+                    date: $('#searchInput').val(),
+                    name: $('#searchInput2').val(),
+                    userid: $('#searchInput3').val(),
+                    program_id: $('#searchInputProgram').val()
+                };
+            }
+
             // Event delegation for all search inputs
             $(document).on('change', '#searchInput', function() {
-                performSearch({
-                    date: $(this).val()
-                });
+                performSearch(gatherFilters());
             });
 
             $(document).on('input', '#searchInput2', function() {
-                debouncedSearch({
-                    name: $(this).val()
-                });
+                debouncedSearch(gatherFilters());
             });
 
             $(document).on('change', '#searchInput3', function() {
-                performSearch({
-                    userid: $(this).val()
-                });
+                performSearch(gatherFilters());
+            });
+
+            $(document).on('change', '#searchInputProgram', function() {
+                performSearch(gatherFilters());
             });
 
             // Optimized search handler with template literal

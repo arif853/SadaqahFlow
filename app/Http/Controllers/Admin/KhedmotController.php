@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Models\User;
 use App\Models\Member;
 use App\Models\Khedmot;
+use App\Models\ProgramType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
@@ -21,11 +22,12 @@ class KhedmotController extends Controller
         $user = auth()->user();
         $users = User::where('status',1)->get();
         $members = $user->isAdminLevel() ? Member::where('status',1)->get() : $user->members;
+        $programTypes = ProgramType::orderBy('date','desc')->get();
         $khedmots = Khedmot::with('member','user','program')
             ->visibleTo($user)
             ->orderBy('date','desc')
             ->get();
-        return view('admin.khedmots.index',compact('khedmots','members','users'));
+        return view('admin.khedmots.index',compact('khedmots','members','users','programTypes'));
     }
 
     /**
@@ -220,6 +222,7 @@ class KhedmotController extends Controller
         abort_unless(auth()->user()->can('view khedmot'), 403);
         $khedmots = Khedmot::with('member','user','program')
             ->filterBy($request->date, $request->name)
+            ->when($request->program_id, fn ($query) => $query->where('program_id', $request->program_id))
             ->visibleTo(auth()->user(), $request->userid)
             ->orderBy('date','desc')
             ->get();

@@ -42,7 +42,12 @@ class ProgramTypeController extends Controller
         try {
             DB::beginTransaction();
 
-            $validatedData['status'] = '1';
+            $validatedData['status'] = $request->has('status') ? '1' : '0';
+
+            if ($validatedData['status'] === '1') {
+                ProgramType::where('status', 1)->update(['status' => 0]);
+            }
+
             ProgramType::create($validatedData);
 
             DB::commit();
@@ -91,6 +96,11 @@ class ProgramTypeController extends Controller
         ]);
 
         $validatedData['status'] = $request->status ? '1' : '0';
+
+        if ($validatedData['status'] === '1') {
+            ProgramType::where('id', '!=', $program->id)->where('status', 1)->update(['status' => 0]);
+        }
+
         $program->update($validatedData);
         // $member->save();
         session()->flash('status', ['type' => 'success', 'message' => 'অনুষ্ঠান সফলভাবে আপডেট হয়েছে']);
@@ -110,7 +120,13 @@ class ProgramTypeController extends Controller
     public function status(string $id)
     {
         $program = ProgramType::findOrFail($id);
-        $program->status = !$program->status;
+        $activating = !$program->status;
+
+        if ($activating) {
+            ProgramType::where('id', '!=', $program->id)->where('status', 1)->update(['status' => 0]);
+        }
+
+        $program->status = $activating;
         $program->save();
         // return response()->json(['status' => 'success', 'message' => 'জাকের সফলভাবে স্টেটাস আপডেট হয়েছে']);
         return redirect()->back()->with('status', ['type' => 'success', 'message' => 'অনুষ্ঠান সফলভাবে স্টেটাস আপডেট হয়েছে']);

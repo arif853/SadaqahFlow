@@ -9,21 +9,27 @@ use Illuminate\Http\Request;
 use App\Models\Receive;
 use App\Http\Controllers\Controller;
 use App\Models\Pay;
+use App\Models\ProgramType;
 use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
     public function index()
     {
+        $activeProgram = ProgramType::where('status', 1)->first();
+        // no program can legitimately have id 0, so this cleanly yields
+        // "match nothing" below when there's no active program at all
+        $activeProgramId = $activeProgram->id ?? 0;
+
         $totalCentralFunds='';
         if (Auth::user()->isAdminLevel()) {
-            $khedmots = Khedmot::orderBy('created_at', 'desc')->limit(10)
+            $khedmots = Khedmot::where('program_id', $activeProgramId)->orderBy('created_at', 'desc')->limit(10)
             ->get();
             $totalMembers = Member::count();
 
-            $collectedKhedmots = Khedmot::where('is_collected', true)->get();
-            $nonCollectedKhedmots = Khedmot::where('is_collected', false)->get();
-            $centralFunds = Receive::where('status', 'collected')->get();
+            $collectedKhedmots = Khedmot::where('program_id', $activeProgramId)->where('is_collected', true)->get();
+            $nonCollectedKhedmots = Khedmot::where('program_id', $activeProgramId)->where('is_collected', false)->get();
+            $centralFunds = Receive::where('status', 'collected')->where('program_id', $activeProgramId)->get();
             $totalPayments = Pay::sum('total_paid');
 
             $totalCentralFunds = $centralFunds->sum('total_amount')-$totalPayments;
@@ -40,12 +46,12 @@ class DashboardController extends Controller
 
         } else {
             $user = Auth::user();
-            $khedmots = Khedmot::where('user_id', $user->id)->orderBy('created_at', 'desc')->limit(10)->get();
+            $khedmots = Khedmot::where('user_id', $user->id)->where('program_id', $activeProgramId)->orderBy('created_at', 'desc')->limit(10)->get();
             $totalMembers = $user->members->count();
 
-            $collectedKhedmots = $user->khedmots()->where('is_collected', true)->get();
-            $nonCollectedKhedmots = $user->khedmots()->where('is_collected', false)->get();
-            $centralFunds = Receive::where('status', 'collected')->where('submitted_by', $user->id)->get();
+            $collectedKhedmots = $user->khedmots()->where('program_id', $activeProgramId)->where('is_collected', true)->get();
+            $nonCollectedKhedmots = $user->khedmots()->where('program_id', $activeProgramId)->where('is_collected', false)->get();
+            $centralFunds = Receive::where('status', 'collected')->where('submitted_by', $user->id)->where('program_id', $activeProgramId)->get();
 
             $totalKhedmotAmount = $collectedKhedmots->sum('khedmot_amount');
             $totalRentAmount = $collectedKhedmots->sum('rent_amount');
@@ -62,6 +68,9 @@ class DashboardController extends Controller
         $chartUsers = User::whereDoesntHave('roles', function($query) {
             $query->where('name', 'Super Admin');
         })
+        ->with(['khedmots' => function ($query) use ($activeProgramId) {
+            $query->where('program_id', $activeProgramId);
+        }])
         ->orderBy('id', 'desc')
         ->get();
 
@@ -81,7 +90,8 @@ class DashboardController extends Controller
             'RentAmount',
             'KalyanAmount',
             'ManatAmount',
-            'totalCentralFunds'
+            'totalCentralFunds',
+            'activeProgram'
         ));
     }
 }

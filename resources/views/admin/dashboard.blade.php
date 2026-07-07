@@ -33,6 +33,17 @@
                 R:{{$khedmots->sum('rent_amount')}} <br>
                 KL:{{$khedmots->sum('kalyan_amount')}} <br>
                 M:{{$khedmots->sum('manat_amount')}} <br> --}}
+                @if($activeProgram)
+                <div class="alert alert-primary d-flex align-items-center mb-15" role="alert">
+                    <i data-feather="calendar" class="me-2"></i>
+                    <div>সক্রিয় অনুষ্ঠান: <strong>{{ $activeProgram->name }}</strong> — নিচের সকল সংখ্যা এই অনুষ্ঠানের জন্য দেখানো হচ্ছে।</div>
+                </div>
+                @else
+                <div class="alert alert-warning d-flex align-items-center mb-15" role="alert">
+                    <i data-feather="alert-triangle" class="me-2"></i>
+                    <div>কোনো সক্রিয় অনুষ্ঠান নেই। <a href="{{ route('program-types.index') }}">অনুষ্ঠান ধরন</a> থেকে একটি অনুষ্ঠান সক্রিয় করুন।</div>
+                </div>
+                @endif
                 <div class="row">
                     @if (auth()->user()->getRoleNames()->contains('Super Admin') || auth()->user()->getRoleNames()->contains('Admin'))
                     <div class="col-12 col-sm-12 col-md-4 col-lg-3 col-xl-2">
