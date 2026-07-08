@@ -458,8 +458,21 @@
 
 @endsection
 @push('script')
-<script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.7/dayjs.min.js"></script>
-
+    <script>
+        // Local date formatter (replaces the CDN dayjs dependency, which the
+        // service worker blocks offline and in production). Formats a DB date
+        // string ("YYYY-MM-DD" or ISO datetime) as "DD-MMM-YYYY".
+        function formatCardDate(dateStr) {
+            if (!dateStr) return '';
+            const datePart = String(dateStr).split('T')[0].split(' ')[0];
+            const parts = datePart.split('-');
+            if (parts.length !== 3) return dateStr;
+            const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const mi = parseInt(parts[1], 10) - 1;
+            if (mi < 0 || mi > 11) return dateStr;
+            return String(parts[2]).padStart(2, '0') + '-' + months[mi] + '-' + parts[0];
+        }
+    </script>
     <script>
         $(document).ready(function() {
 
@@ -544,7 +557,7 @@
                     '<span class="badge bg-success text-white w-25 text-center">হ্যা</span>' :
                     '<span class="badge bg-danger text-white w-25 text-center">না</span>';
                 const userName = khedmot.user?.name || '';
-                const formattedDate = dayjs(khedmot.date).format('DD-MMM-YYYY');
+                const formattedDate = formatCardDate(khedmot.date);
                 const nicename = khedmot.member.nickName ? `(${khedmot.member.nickName})` : '';
 
                 const cardHTML = `
