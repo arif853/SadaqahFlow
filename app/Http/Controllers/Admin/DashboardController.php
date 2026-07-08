@@ -23,7 +23,7 @@ class DashboardController extends Controller
 
         $totalCentralFunds='';
         if (Auth::user()->isAdminLevel()) {
-            $khedmots = Khedmot::where('program_id', $activeProgramId)->orderBy('created_at', 'desc')->limit(10)
+            $khedmots = Khedmot::with('member', 'program', 'user')->where('program_id', $activeProgramId)->orderBy('created_at', 'desc')->limit(10)
             ->get();
             $totalMembers = Member::count();
 
@@ -46,7 +46,7 @@ class DashboardController extends Controller
 
         } else {
             $user = Auth::user();
-            $khedmots = Khedmot::where('user_id', $user->id)->where('program_id', $activeProgramId)->orderBy('created_at', 'desc')->limit(10)->get();
+            $khedmots = Khedmot::with('member', 'program', 'user')->where('user_id', $user->id)->where('program_id', $activeProgramId)->orderBy('created_at', 'desc')->limit(10)->get();
             $totalMembers = $user->members->count();
 
             $collectedKhedmots = $user->khedmots()->where('program_id', $activeProgramId)->where('is_collected', true)->get();

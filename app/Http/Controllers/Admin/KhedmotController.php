@@ -23,11 +23,10 @@ class KhedmotController extends Controller
         $users = User::where('status',1)->get();
         $members = $user->isAdminLevel() ? Member::where('status',1)->get() : $user->members;
         $programTypes = ProgramType::orderBy('date','desc')->get();
-        $khedmots = Khedmot::with('member','user','program')
-            ->visibleTo($user)
-            ->orderBy('date','desc')
-            ->get();
-        return view('admin.khedmots.index',compact('khedmots','members','users','programTypes'));
+        $activeProgram = ProgramType::where('status', 1)->first();
+        // The card list is loaded (and paginated) client-side via the search
+        // endpoint, so we no longer fetch every khedmot up front.
+        return view('admin.khedmots.index',compact('members','users','programTypes','activeProgram'));
     }
 
     /**
@@ -89,6 +88,18 @@ class KhedmotController extends Controller
                 'is_collected' => false,
             ]);
             DB::commit();
+
+            // For the in-page quick-entry flow: return the new record (with the
+            // relations the card template needs) so JS can prepend it instead of
+            // forcing a full page reload.
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'খেদমত যোগ করা সফল হয়েছে।',
+                    'khedmot' => $khedmot->load('member', 'user', 'program'),
+                ]);
+            }
+
             return redirect()->back()->with('status', [
                 'type' => 'success',
                 'message' => 'খেদমত যোগ করা সফল হয়েছে।'
@@ -97,6 +108,14 @@ class KhedmotController extends Controller
             $errorMessages = implode('<br>', $e->validator->errors()->all());
             DB::rollBack();
             Log::error('Khedmot Creation Error: '.$e->getMessage());
+
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'status' => 'danger',
+                    'message' => $errorMessages,
+                ], 422);
+            }
+
             return redirect()->back()
                 ->withInput()
                 ->with('status', [
@@ -160,17 +179,23 @@ class KhedmotController extends Controller
                 'manat_amount' => $request->manat_amount,
                 'comment' => $request->comment,
             ]);
-            session()->flash('status', [
-                'type' => 'success',
-                'message' => 'খেদমত আপডেট করা সফল হয়েছে।'
-            ]);
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'খেদমত আপডেট করা সফল হয়েছে।'
+                'message' => 'খেদমত আপডেট করা সফল হয়েছে।',
+                // Return the fresh record (with relations) so JS can rebuild the
+                // card in place instead of reloading the whole page.
+                'khedmot' => $khedmot->load('member', 'user', 'program'),
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             $errorMessages = implode('<br>', $e->validator->errors()->all());
+
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'status' => 'danger',
+                    'message' => $errorMessages,
+                ], 422);
+            }
 
             return redirect()->back()
                 ->withInput()
@@ -220,14 +245,32 @@ class KhedmotController extends Controller
     public function search(Request $request)
     {
         abort_unless(auth()->user()->can('view khedmot'), 403);
-        $khedmots = Khedmot::with('member','user','program')
-            ->filterBy($request->date, $request->name)
-            ->when($request->program_id, fn ($query) => $query->where('program_id', $request->program_id))
-            ->visibleTo(auth()->user(), $request->userid)
-            ->orderBy('date','desc')
-            ->get();
 
-        return response()->json($khedmots);
+        $perPage = 30;
+
+        // Build the filtered query once, then reuse it for both the aggregate
+        // totals (over the whole filtered set) and the paginated page fetch.
+        $query = Khedmot::with('member','user','program')
+            ->filterBy($request->date, $request->name)
+            ->when($request->program_id, fn ($q) => $q->where('program_id', $request->program_id))
+            ->visibleTo(auth()->user(), $request->userid);
+
+        $total = (clone $query)->count();
+        $khedmotSum = (clone $query)->sum('khedmot_amount');
+        $manatSum = (clone $query)->sum('manat_amount');
+
+        $khedmots = $query->orderBy('date','desc')->paginate($perPage);
+
+        return response()->json([
+            'data' => $khedmots->items(),
+            'meta' => [
+                'current_page' => $khedmots->currentPage(),
+                'last_page' => $khedmots->lastPage(),
+                'total' => $total,
+                'khedmot_sum' => (float) $khedmotSum,
+                'manat_sum' => (float) $manatSum,
+            ],
+        ]);
     }
 
     public function kolyanStore(Request $request)

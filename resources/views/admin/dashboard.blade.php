@@ -256,15 +256,7 @@
                                         <td>{{ $khedmot->member->name }}</td>
                                         <td>{{ $khedmot->date }}</td>
                                         <td>
-                                            @if($khedmot->program_name == 1)
-                                                <span>ওরশ পাক</span>
-                                            @elseif($khedmot->program_name == 2)
-                                                <span>বেসালত দিবস</span>
-                                            @elseif($khedmot->program_name == 3)
-                                                <span>জলসায়ে ওরশ পাক</span>
-                                            @elseif($khedmot->program_name == 4)
-                                                <span>অনন্যা - {{$khedmot->other_program_name}}</span>
-                                            @endif
+                                            <span>{{ $khedmot->program ? $khedmot->program->name : ($khedmot->other_program_name ?? '') }}</span>
                                         </td>
                                         <td>{{ $khedmot->khedmot_amount }}</td>
                                         <td>{{ $khedmot->user->name }}</td>

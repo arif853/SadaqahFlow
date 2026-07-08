@@ -82,112 +82,27 @@
                 </div>
             </div>
         </div>
-        <div class="row" id="khedmotCard">
-            @foreach ($khedmots as $key => $khedmot)
-            <div class="col-sm-12 col-md-4 col-lg-4 col-xl-4 col-xxl-3" >
-                <div class="card">
-                    <div class="card-body">
-                        <table class="table table-borderless">
-                            <tr>
-                                <td width="50%"><strong>নং:</strong></td>
-                                <td width="50%">{{ $key + 1 }}</td>
-                            </tr>
-                            <tr>
-                                <td width="50%" ><strong>তারিখ:</strong></td>
-                                <td width="50%">{{ Carbon\Carbon::parse($khedmot->date)->format('d-M-Y') }}</td>
-                            </tr>
-                             <tr>
-                                <td> <strong>কল্যাণ নাম্বার :</strong></td>
-                                <td>{{ $khedmot->member->kollan_id }}</td>
-                            </tr>
-                            <tr>
-                                <td width="50%"><strong>জাকের নাম:</strong></td>
-                                <td width="50%">{{ $khedmot->member->name }} {{$khedmot->member->nickName? '('.$khedmot->member->nickName.')':''}}</td>
-
-                            </tr>
-                            <tr>
-                                <td width="50%"><strong>অনুষ্ঠান নাম:</strong></td>
-                                <td>
-                                    {{-- @if($khedmot->program_name == 4)
-                                        {{ $khedmot->other_program_name }}
-                                    @elseif ($khedmot->program_name == 1)
-                                        {{ 'ওরশ পাক' }}
-                                    @elseif ($khedmot->program_name == 2)
-                                        {{ 'বেসালত দিবস' }}
-                                    @elseif ($khedmot->program_name == 3)
-                                        {{ 'জলসায়ে ওরশ পাক' }}
-                                    @endif --}}
-                                    {{$khedmot->program ? $khedmot->program->name : ''}}
-                                </td>
-                            </tr>
-                            <tr>
-                                <td width="50%"><strong>খেদমত:</strong></td>
-                                <td width="50%">
-                                    @if($khedmot->khedmot_amount != null)
-                                        <span>খেদমত : {{ $khedmot->khedmot_amount }} টাকা</span>
-                                    @endif
-                                    @if($khedmot->manat_amount != null)
-                                        <span>মানত : {{ $khedmot->manat_amount }} টাকা</span>
-                                    @endif
-                                    @if($khedmot->kalyan_amount != null)
-                                        <span>কল্যাণ : {{ $khedmot->kalyan_amount }} টাকা</span>
-                                    @endif
-                                    @if($khedmot->rent_amount != null)
-                                        <span> ভাড়া : {{ $khedmot->rent_amount }} টাকা</span>
-                                    @endif
-                                </td>
-                            </tr>
-                            <tr>
-                                <td width="50%" ><strong>মন্তব্য:</strong></td>
-                                <td width="50%">{{ $khedmot->comment }}</td>
-                            </tr>
-                            <tr>
-                                <td width="50%" ><strong>জমা করেছেন:</strong></td>
-                                <td width="50%">
-                                    @if($khedmot->is_collected == 1)
-                                        <span class="badge bg-success text-white w-25 text-center">হ্যা</span>
-                                    @else
-                                        <span class="badge bg-danger text-white w-25 text-center">না</span>
-                                    @endif
-                                </td>
-                            </tr>
-                            <tr>
-                                <td width="50%"><strong>কর্মি:</strong></td>
-                                <td width="50%">{{ $khedmot->user->name }}</td>
-                            </tr>
-                            <tr>
-                                <td width="50%"><strong>ক্রিয়াকলা:</strong></td>
-                                <td width="50%">
-                                    @can('update khedmot')
-                                    @if (!$khedmot->is_collected)
-                                    <button type="button" class="btn btn-outline-warning btn-md me-2 editBtn" data-id="{{$khedmot->id}}" data-bs-toggle="modal" data-bs-target="#editModal">
-                                        <i class="fa fa-pencil"></i>
-                                    </button>
-                                    @endif
-                                    @endcan
-                                    @can('show khedmot')
-                                    <button type="button" class="btn btn-outline-info btn-md me-2 viewBtn" data-id="{{$khedmot->id}}" data-bs-toggle="modal" data-bs-target="#viewModal">
-                                        <i class="fa fa-eye"></i>
-                                    </button>
-                                    @endcan
-                                    @can('delete khedmot')
-                                    @if (!$khedmot->is_collected)
-                                    <button type="button" class="btn btn-outline-danger btn-md me-2 deleteBtn" data-id="{{$khedmot->id}}">
-                                        <i class="fa fa-trash" ></i>
-                                    </button>
-                                    @endif
-                                    @endcan
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
-
+        {{-- Result summary: total count + running totals for the current filter --}}
+        <div class="row" id="khedmotSummary" style="display: none;">
+            <div class="col-12 mb-10">
+                <div class="d-flex flex-wrap align-items-center" style="gap: 8px;">
+                    <span class="badge bg-info text-white">মোট: <span id="summaryCount">0</span> টি</span>
+                    <span class="badge bg-success text-white">খেদমত: &#2547;<span id="summaryKhedmot">0</span></span>
+                    <span class="badge bg-warning text-dark">মানত: &#2547;<span id="summaryManat">0</span></span>
                 </div>
             </div>
-            @endforeach
         </div>
-        <div id="khedmotCardContainer" class="row">
-
+        {{-- Single AJAX-driven, paginated card list --}}
+        <div class="row" id="khedmotList"></div>
+        <div class="row">
+            <div class="col-12 text-center mb-20">
+                <div id="khedmotLoader" style="display: none;">
+                    <span class="spinner-border spinner-border-sm" role="status"></span> লোড হচ্ছে...
+                </div>
+                <p id="khedmotEmpty" class="text-center" style="display: none;">কোন ফলাফল পাওয়া যায়নি</p>
+                <button type="button" id="loadMoreBtn" class="btn btn-outline-primary btn-md" style="display: none;">আরও দেখুন</button>
+                <div id="khedmotSentinel" style="height: 1px;"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -292,14 +207,14 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-            <form action="{{route('khedmots.store')}}" method="POST" >
+            <form id="addForm" action="{{route('khedmots.store')}}" method="POST" >
                 @csrf
                 @method('POST')
                 <div class="row">
                     <div class="col-6 col-sm-12 col-md-6">
                         <div class="form-group">
                             <label for="" class="form-lable">তারিখ </label>
-                            <input class="form-control" type="date" placeholder="তারিখ " name="date">
+                            <input class="form-control" type="date" placeholder="তারিখ " name="date" value="{{ now()->toDateString() }}">
                         </div>
                     </div>
                 </div>
@@ -321,7 +236,7 @@
                     <select name="program_id" id="program_name1" class="form-control">
                         <option value="">অনুষ্ঠান নাম নির্বাচন করুন</option>
                         @foreach (App\Models\ProgramType::where('status',1)->get() as $programType)
-                            <option value="{{$programType->id}}">{{$programType->name}}</option>
+                            <option value="{{$programType->id}}" {{ (isset($activeProgram) && $activeProgram && $activeProgram->id == $programType->id) ? 'selected' : '' }}>{{$programType->name}}</option>
 
                         @endforeach
                     </select>
@@ -488,22 +403,12 @@
                 };
             }
 
-            // Centralized search function
-            function performSearch(params) {
-                $.ajax({
-                    url: '/khedmots/khedmot-search/search',
-                    type: 'GET',
-                    data: params,
-                    success: searchHandler,
-                    error: function(xhr, status, error) {
-                        console.error('Search Error:', error);
-                        console.error('Response:', xhr.responseText);
-                    }
-                });
-            }
-
-            // Debounced search function (300ms delay)
-            const debouncedSearch = debounce(performSearch, 300);
+            // ---- Paginated, infinite-scroll list state ----
+            let currentPage = 0;
+            let lastPage = 1;
+            let isLoading = false;
+            let renderedCount = 0; // running serial for the number column
+            let summary = { total: 0, khedmot: 0, manat: 0 };
 
             // Gather every active filter so they combine instead of overriding each other
             function gatherFilters() {
@@ -515,42 +420,94 @@
                 };
             }
 
-            // Event delegation for all search inputs
-            $(document).on('change', '#searchInput', function() {
-                performSearch(gatherFilters());
-            });
-
-            $(document).on('input', '#searchInput2', function() {
-                debouncedSearch(gatherFilters());
-            });
-
-            $(document).on('change', '#searchInput3', function() {
-                performSearch(gatherFilters());
-            });
-
-            $(document).on('change', '#searchInputProgram', function() {
-                performSearch(gatherFilters());
-            });
-
-            // Optimized search handler with template literal
-            function searchHandler(response) {
-                const khedmotCard = $('#khedmotCard');
-                khedmotCard.empty();
-                const $container = $('#khedmotCardContainer');
-                $container.empty();
-
-                if (!response || response.length === 0) {
-                    $container.append('<p class="text-center">কোন ফলাফল পাওয়া যায়নি</p>');
-                    return;
-                }
-                // Use DocumentFragment for better performance
-                const fragment = document.createDocumentFragment();
-                response.forEach((khedmot, index) => {
-                    const card = createKhedmotCard(khedmot, index);
-                    fragment.appendChild(card);
-                });
-                $container.append(fragment);
+            function renderSummary() {
+                $('#summaryCount').text(summary.total);
+                $('#summaryKhedmot').text(summary.khedmot);
+                $('#summaryManat').text(summary.manat);
+                $('#khedmotSummary').show();
             }
+
+            // Load one page of results. reset=true clears the list and starts at page 1.
+            function loadKhedmots(reset) {
+                if (isLoading) return;
+                if (!reset && currentPage >= lastPage) return;
+
+                isLoading = true;
+                $('#khedmotLoader').show();
+                $('#loadMoreBtn').hide();
+
+                const params = gatherFilters();
+                params.page = reset ? 1 : currentPage + 1;
+
+                $.ajax({
+                    url: '/khedmots/khedmot-search/search',
+                    type: 'GET',
+                    data: params,
+                    dataType: 'json',
+                    success: function(response) {
+                        const data = response.data || [];
+                        const meta = response.meta || {};
+
+                        if (reset) {
+                            $('#khedmotList').empty();
+                            renderedCount = 0;
+                        }
+
+                        const fragment = document.createDocumentFragment();
+                        data.forEach(function(khedmot) {
+                            fragment.appendChild(createKhedmotCard(khedmot, renderedCount++));
+                        });
+                        document.getElementById('khedmotList').appendChild(fragment);
+                        if (window.feather) { feather.replace(); }
+
+                        currentPage = meta.current_page || params.page;
+                        lastPage = meta.last_page || 1;
+
+                        summary.total = meta.total || 0;
+                        summary.khedmot = meta.khedmot_sum || 0;
+                        summary.manat = meta.manat_sum || 0;
+                        renderSummary();
+
+                        $('#khedmotEmpty').toggle(summary.total === 0);
+                        $('#loadMoreBtn').toggle(currentPage < lastPage);
+                    },
+                    error: function(xhr) {
+                        console.error('Search Error:', xhr.responseText);
+                    },
+                    complete: function() {
+                        isLoading = false;
+                        $('#khedmotLoader').hide();
+                    }
+                });
+            }
+
+            const debouncedReset = debounce(function() { loadKhedmots(true); }, 300);
+
+            // Any filter change resets to page 1
+            $(document).on('change', '#searchInput, #searchInput3, #searchInputProgram', function() {
+                loadKhedmots(true);
+            });
+            $(document).on('input', '#searchInput2', debouncedReset);
+
+            // Manual "load more" (reliable fallback and explicit control)
+            $(document).on('click', '#loadMoreBtn', function() {
+                loadKhedmots(false);
+            });
+
+            // Auto-load the next page when the sentinel scrolls into view.
+            // SimpleBar scrolls an inner element, so use it as the observer root when present.
+            const scrollRoot = document.querySelector('.theme-body .simplebar-content-wrapper');
+            if ('IntersectionObserver' in window) {
+                const observer = new IntersectionObserver(function(entries) {
+                    if (entries[0].isIntersecting) {
+                        loadKhedmots(false);
+                    }
+                }, { root: scrollRoot || null, rootMargin: '200px' });
+                observer.observe(document.getElementById('khedmotSentinel'));
+            }
+
+            // Initial load
+            loadKhedmots(true);
 
             // Separate function to create card (easier to maintain)
             function createKhedmotCard(khedmot, index) {
@@ -566,7 +523,7 @@
                 const nicename = khedmot.member.nickName ? `(${khedmot.member.nickName})` : '';
 
                 const cardHTML = `
-                    <div class="col-sm-12 col-md-4 col-lg-4 col-xl-4 col-xxl-3">
+                    <div class="col-sm-12 col-md-4 col-lg-4 col-xl-4 col-xxl-3" data-khedmot-id="${khedmot.id}" data-khedmot-amount="${khedmotAmount}" data-manat-amount="${manatAmount}">
                         <div class="card">
                             <div class="card-body">
                                 <table class="table table-borderless">
@@ -693,31 +650,42 @@
 
             $(document).on('submit', '#editForm', function(e) {
                 e.preventDefault();
-                const formData = new FormData(this);
-                console.log(formData);
+                const $form = $(this);
+                const $submitBtn = $form.find('button[type="submit"]');
+                $submitBtn.prop('disabled', true);
                 $.ajax({
-                    url: $(this).attr('action'),
+                    url: $form.attr('action'),
                     type: "POST",
-                    data: formData,
+                    data: new FormData(this),
                     processData: false,
                     contentType: false,
+                    dataType: 'json',
                     success: function(response) {
-                        console.log(response);
+                        if (response.khedmot) {
+                            // Rebuild the edited card in place, preserving its serial number.
+                            const k = response.khedmot;
+                            const $old = $('[data-khedmot-id="' + k.id + '"]');
+                            const serial = parseInt($old.find('table tr:first td').eq(1).text(), 10) || 1;
+                            // Adjust running totals by the delta between old and new amounts.
+                            summary.khedmot += (Number(k.khedmot_amount) || 0) - (Number($old.data('khedmot-amount')) || 0);
+                            summary.manat += (Number(k.manat_amount) || 0) - (Number($old.data('manat-amount')) || 0);
+                            renderSummary();
+                            const newCard = createKhedmotCard(k, serial - 1);
+                            if ($old.length) {
+                                $old.replaceWith(newCard);
+                            }
+                            if (window.feather) { feather.replace(); }
+                        }
                         $('#editModal').modal('hide');
-                        $('#editForm')[0].reset();
-                       location.reload();
-                        showNotification(
-                            response.status,
-                            response.message,
-                            response.status
-                        );
+                        $form[0].reset();
+                        showNotification(response.status, response.message, response.status);
                     },
-                    error: function(response) {
-                        console.log(response);
-                        $('#editModal').modal('hide');
-                        $('#editForm')[0].reset();
-                       location.reload();
-
+                    error: function(xhr) {
+                        const message = xhr.responseJSON?.message || 'খেদমত আপডেট করা যায়নি।';
+                        showNotification('danger', message, 'Danger');
+                    },
+                    complete: function() {
+                        $submitBtn.prop('disabled', false);
                     }
                 });
             });
@@ -763,19 +731,88 @@
                         $.ajax({
                             url: `/khedmots/${id}`,
                             method: 'DELETE',
+                            dataType: 'json',
                             success: function(response) {
-                                location.reload();
+                                if (response.status === 'success') {
+                                    // Adjust running totals, then remove the card and re-sync serials.
+                                    const $card = $('[data-khedmot-id="' + id + '"]');
+                                    summary.total = Math.max(0, summary.total - 1);
+                                    summary.khedmot -= Number($card.data('khedmot-amount')) || 0;
+                                    summary.manat -= Number($card.data('manat-amount')) || 0;
+                                    renderSummary();
+                                    $card.remove();
+                                    renumberKhedmotCards();
+                                    $('#khedmotEmpty').toggle(summary.total === 0);
+                                }
                                 showNotification(
                                     response.status,
                                     response.message,
                                     response.status
                                 );
+                            },
+                            error: function(xhr) {
+                                const message = xhr.responseJSON?.message || 'খেদমত ডিলিট করা যায়নি।';
+                                showNotification('danger', message, 'Danger');
                             }
                         });
                     } else if (result.isDenied) {
                         Swal.fire('Changes are not saved', '', 'info')
                     }
                 })
+            });
+
+            // Keep the number (serial) column in sync after a card is added/removed.
+            function renumberKhedmotCards() {
+                const $cards = $('#khedmotList').children('div');
+                $cards.each(function (i) {
+                    $(this).find('table tr:first td').eq(1).text(i + 1);
+                });
+                renderedCount = $cards.length;
+            }
+
+            // Quick-entry add: submit via AJAX and prepend the new card so the
+            // collector isn't bounced through a full page reload on every record.
+            $(document).on('submit', '#addForm', function (e) {
+                e.preventDefault();
+                const $form = $(this);
+                const $submitBtn = $form.find('button[type="submit"]');
+                $submitBtn.prop('disabled', true);
+
+                $.ajax({
+                    url: $form.attr('action'),
+                    type: 'POST',
+                    data: new FormData(this),
+                    processData: false,
+                    contentType: false,
+                    dataType: 'json',
+                    success: function (response) {
+                        if (response.khedmot) {
+                            const k = response.khedmot;
+                            $('#khedmotList').prepend(createKhedmotCard(k, 0));
+                            renumberKhedmotCards();
+                            if (window.feather) { feather.replace(); }
+                            // Keep running totals in sync with the new record.
+                            summary.total += 1;
+                            summary.khedmot += Number(k.khedmot_amount) || 0;
+                            summary.manat += Number(k.manat_amount) || 0;
+                            renderSummary();
+                            $('#khedmotEmpty').hide();
+                        }
+                        $('#addModal').modal('hide');
+                        // Reset the form but keep the sensible defaults (today's
+                        // date and the active program) ready for the next entry.
+                        $form[0].reset();
+                        $('#member_id1').val('').trigger('change');
+                        showNotification(response.status, response.message, response.status);
+                    },
+                    error: function (xhr) {
+                        const message = xhr.responseJSON?.message || 'খেদমত যোগ করা যায়নি।';
+                        showNotification('danger', message, 'Danger');
+                    },
+                    complete: function () {
+                        $submitBtn.prop('disabled', false);
+                    }
+                });
             });
 
              // When modal opens, (re)initialize select2
