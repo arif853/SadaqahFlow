@@ -506,6 +506,12 @@
                 observer.observe(document.getElementById('khedmotSentinel'));
             }
 
+            // Seed the name filter from the global header search (?q=...) before first load
+            (function applyGlobalQuery() {
+                const q = new URLSearchParams(window.location.search).get('q');
+                if (q) { $('#searchInput2').val(q); }
+            })();
+
             // Initial load
             loadKhedmots(true);
 

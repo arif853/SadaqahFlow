@@ -60,14 +60,23 @@
         <div class="header-contian d-flex justify-content-between align-items-center">
             <div class="header-left d-flex align-items-center">
                 <div class="sidebar-action navicon-wrap"><i data-feather="menu"></i></div>
+                @php
+                    $globalSearchUrl = auth()->user()->can('view member')
+                        ? route('members.index')
+                        : (auth()->user()->can('view khedmot') ? route('khedmots.index') : null);
+                @endphp
+                @if($globalSearchUrl)
                 <div class="search-bar">
                     <div class="form-group mb-0">
                         <div class="input-group">
-                            <input class="form-control" type="text" value="" placeholder="Search Here....."><span
-                                class="input-group-text"><i data-feather="search"></i></span>
+                            <input class="form-control" id="globalSearch" type="text" value="" autocomplete="off"
+                                data-search-url="{{ $globalSearchUrl }}"
+                                placeholder="জাকের নাম / ফোন / কল্যাণ নাম্বার খুঁজুন....."><span
+                                class="input-group-text" id="globalSearchBtn" role="button" style="cursor: pointer;"><i data-feather="search"></i></span>
                         </div>
                     </div>
                 </div>
+                @endif
             </div>
             <div class="header-right d-flex align-items-center justify-content-end">
                 <ul class="nav-iconlist">
@@ -186,6 +195,19 @@
         $(document).ready(function() {
             new DataTable('#dataTable');
             $('.select2').select2();
+
+            // Global header search: jump to the list page with the term pre-applied.
+            function runGlobalSearch() {
+                const $input = $('#globalSearch');
+                const term = $.trim($input.val());
+                if (!term) { return; }
+                const base = $input.data('search-url');
+                window.location.href = base + '?q=' + encodeURIComponent(term);
+            }
+            $('#globalSearch').on('keydown', function(e) {
+                if (e.key === 'Enter') { e.preventDefault(); runGlobalSearch(); }
+            });
+            $('#globalSearchBtn').on('click', runGlobalSearch);
         });
     </script>
     @if(session('status'))

@@ -56,83 +56,23 @@
                 </div>
             </div>
         </div>
-        <div class="row" id="memberCard">
-            @foreach ($members as $key => $member)
-            <div class="col-sm-12 col-md-3 col-lg-3" >
-                <div class="card">
-                    <div class="card-body">
-                        <table class="table table-borderless">
-                            <tr>
-                                <td width="50%"><strong>নং:</strong></td>
-                                <td width="50%">{{ $key + 1 }}</td>
-                            </tr>
-                            <tr>
-                                <td width="50%"><strong>জাকের নাম:</strong></td>
-                                <td style="display: flex; align-items: center;" width="50%">
-                                    <img src="{{ asset('storage/' . $member->image) }}" alt="Avatar" style="width: 50px; height: 50px; border-radius: 5%; margin-right: 10px;">
-                                    <span>{{ $member->name }} {{$member->nickName ? '('.$member->nickName.')': ''}}</span>
-                                    
-                                </td>
-                            </tr>
-                            
-                            <tr>
-                                <td width="50%"><strong>কল্যাণ নাম্বার:</strong></td>
-                                <td width="50%">{{ $member->kollan_id }}</td>
-                            </tr>
-                            <tr>
-                                <td width="50%"><strong>ফোন নাম্বার:</strong></td>
-                                <td width="50%">{{ $member->phone }}</td>
-                            </tr>
-                            <tr>
-                                <td width="50%"><strong>কল্যাণ:</strong></td>
-                                <td width="50%">
-                                    @if($member->kollan_khedmot != null)
-                                        <span>হাদিয়া : {{ $member->kollan_khedmot }} টাকা</span>
-                                    @endif
-                                </td>
-                            </tr>
-                            <tr>
-                                <td width="50%"><strong>অবস্থা:</strong></td>
-                                <td width="50%">
-                                    @if($member->status == 1)
-                                        <a href="{{route('members.status', $member->id)}}" class="badge bg-success text-white">সক্রিয়</a>
-                                    @else
-                                        <a href="{{route('members.status', $member->id)}}" class="badge bg-danger text-white">নিষ্ক্রিয়</a>
-                                    @endif
-                                </td>
-                            </tr>
-                            <tr>
-                                <td width="50%"><strong>কর্মি:</strong></td>
-                                <td width="50%">{{ $member->user[0]->name ?? 'নাই' }}</td>
-                            </tr>
-                            <tr>
-                                <td width="50%"><strong>ক্রিয়াকলা:</strong></td>
-                                <td width="50%">
-                                    @can('show member')
-                                    <a href="{{route('members.show', $member->id)}}" class="btn btn-outline-info btn-sm mr-4 view-btn" data-id="{{$member->id}}">
-                                        <i class="fa fa-eye" ></i>
-                                    </a>
-                                    @endcan
-                                    @can('update member')
-                                    <a href="#" class="btn btn-outline-warning btn-sm mr-4 edit-btn" data-id="{{$member->id}}" data-bs-toggle="modal" data-bs-target="#EditModal">
-                                        <i class="fa fa-pencil" ></i>
-                                    </a>
-                                    @endcan
-                                    @can('delete member')
-                                    <a href="#" class="btn btn-outline-danger btn-sm mr-4 delete-btn" data-id="{{$member->id}}">
-                                        <i class="fa fa-trash" ></i>
-                                    </a>
-                                    @endcan
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
-                </div>
+        {{-- Result summary: total member count for the current filter --}}
+        <div class="row" id="memberSummary" style="display: none;">
+            <div class="col-12 mb-10">
+                <span class="badge bg-info text-white">মোট: <span id="memberCount">0</span> জন</span>
             </div>
-            @endforeach
         </div>
-        <div id="memberCardContainer" class="row">
-
+        {{-- Single AJAX-driven, paginated card list --}}
+        <div class="row" id="memberList"></div>
+        <div class="row">
+            <div class="col-12 text-center mb-20">
+                <div id="memberLoader" style="display: none;">
+                    <span class="spinner-border spinner-border-sm" role="status"></span> লোড হচ্ছে...
+                </div>
+                <p id="memberEmpty" class="text-center" style="display: none;">কোন ফলাফল পাওয়া যায়নি</p>
+                <button type="button" id="memberLoadMore" class="btn btn-outline-primary btn-md" style="display: none;">আরও দেখুন</button>
+                <div id="memberSentinel" style="height: 1px;"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -216,7 +156,7 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-            <form action="{{route('members.store')}}" method="POST" enctype="multipart/form-data">
+            <form id="AddForm" action="{{route('members.store')}}" method="POST" enctype="multipart/form-data">
                 @csrf
                 @method('POST')
                 <div class="form-group">
@@ -320,6 +260,147 @@
                 }
             });
 
+            // ---- Paginated, infinite-scroll list state ----
+            let currentPage = 0;
+            let lastPage = 1;
+            let isLoading = false;
+            let renderedCount = 0;
+            let totalCount = 0;
+
+            function debounce(func, wait) {
+                let t;
+                return function (...args) { clearTimeout(t); t = setTimeout(() => func.apply(this, args), wait); };
+            }
+
+            function renderCount() {
+                $('#memberCount').text(totalCount);
+                $('#memberSummary').show();
+            }
+
+            // Resolve the assigned collector name from either relation shape.
+            function memberUserName(member) {
+                if (member.member_assigns && member.member_assigns.length && member.member_assigns[0].user) {
+                    return member.member_assigns[0].user.name || 'নাই';
+                }
+                if (member.user && member.user.length && member.user[0]) {
+                    return member.user[0].name || 'নাই';
+                }
+                return 'নাই';
+            }
+
+            function createMemberCard(member, index) {
+                const userName = memberUserName(member);
+                const img = member.image ? `/storage/${member.image}` : '';
+                const nick = member.nickName ? `(${member.nickName})` : '';
+                const status = member.status
+                    ? '<span class="badge bg-success text-white">সক্রিয়</span>'
+                    : '<span class="badge bg-danger text-white">নিষ্ক্রিয়</span>';
+                const cardHTML = `
+                    <div class="col-sm-12 col-md-3 col-lg-3" data-member-id="${member.id}">
+                        <div class="card">
+                            <div class="card-body">
+                                <table class="table table-borderless">
+                                    <tr><td width="50%"><strong>নং:</strong></td><td width="50%">${index + 1}</td></tr>
+                                    <tr>
+                                        <td width="50%"><strong>জাকের নাম:</strong></td>
+                                        <td style="display: flex; align-items: center;" width="50%">
+                                            ${img ? `<img src="${img}" alt="Avatar" style="width:50px;height:50px;border-radius:5%;margin-right:10px;">` : ''}
+                                            <span>${member.name} ${nick}</span>
+                                        </td>
+                                    </tr>
+                                    <tr><td width="50%"><strong>কল্যাণ নাম্বার:</strong></td><td width="50%">${member.kollan_id}</td></tr>
+                                    <tr><td width="50%"><strong>ফোন নাম্বার:</strong></td><td width="50%">${member.phone ?? ''}</td></tr>
+                                    <tr>
+                                        <td width="50%"><strong>কল্যাণ:</strong></td>
+                                        <td width="50%"><span>হাদিয়া : ${member.kollan_khedmot ? member.kollan_khedmot : 'নাই'} টাকা</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td width="50%"><strong>অবস্থা:</strong></td>
+                                        <td width="50%"><a href="/members/status/${member.id}">${status}</a></td>
+                                    </tr>
+                                    <tr><td width="50%"><strong>কর্মি:</strong></td><td width="50%">${userName}</td></tr>
+                                    <tr>
+                                        <td width="50%"><strong>ক্রিয়াকলা:</strong></td>
+                                        <td width="50%">
+                                            @can('show member')
+                                            <a href="/members/${member.id}" class="btn btn-outline-info btn-sm mr-4 view-btn" data-id="${member.id}"><i class="fa fa-eye"></i></a>
+                                            @endcan
+                                            @can('update member')
+                                            <a href="#" class="btn btn-outline-warning btn-sm mr-4 edit-btn" data-id="${member.id}" data-bs-toggle="modal" data-bs-target="#EditModal"><i class="fa fa-pencil"></i></a>
+                                            @endcan
+                                            @can('delete member')
+                                            <a href="#" class="btn btn-outline-danger btn-sm mr-4 delete-btn" data-id="${member.id}"><i class="fa fa-trash"></i></a>
+                                            @endcan
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>`;
+                const div = document.createElement('div');
+                div.innerHTML = cardHTML.trim();
+                return div.firstChild;
+            }
+
+            function renumberMemberCards() {
+                const $cards = $('#memberList').children('div');
+                $cards.each(function (i) { $(this).find('table tr:first td').eq(1).text(i + 1); });
+                renderedCount = $cards.length;
+            }
+
+            function loadMembers(reset) {
+                if (isLoading) return;
+                if (!reset && currentPage >= lastPage) return;
+                isLoading = true;
+                $('#memberLoader').show();
+                $('#memberLoadMore').hide();
+                const params = { term: $('#searchInput').val(), page: reset ? 1 : currentPage + 1 };
+                $.ajax({
+                    url: '/members/member-search/search',
+                    type: 'GET',
+                    data: params,
+                    dataType: 'json',
+                    success: function (response) {
+                        const data = response.data || [];
+                        const meta = response.meta || {};
+                        if (reset) { $('#memberList').empty(); renderedCount = 0; }
+                        const fragment = document.createDocumentFragment();
+                        data.forEach(function (m) { fragment.appendChild(createMemberCard(m, renderedCount++)); });
+                        document.getElementById('memberList').appendChild(fragment);
+                        currentPage = meta.current_page || params.page;
+                        lastPage = meta.last_page || 1;
+                        totalCount = meta.total || 0;
+                        renderCount();
+                        $('#memberEmpty').toggle(totalCount === 0);
+                        $('#memberLoadMore').toggle(currentPage < lastPage);
+                    },
+                    error: function (xhr) { console.error('Member load error:', xhr.responseText); },
+                    complete: function () { isLoading = false; $('#memberLoader').hide(); }
+                });
+            }
+
+            const debouncedReset = debounce(function () { loadMembers(true); }, 300);
+            $(document).on('keyup', '#searchInput', debouncedReset);
+            $(document).on('click', '#memberLoadMore', function () { loadMembers(false); });
+
+            const scrollRoot = document.querySelector('.theme-body .simplebar-content-wrapper');
+            if ('IntersectionObserver' in window) {
+                const observer = new IntersectionObserver(function (entries) {
+                    if (entries[0].isIntersecting) { loadMembers(false); }
+                }, { root: scrollRoot || null, rootMargin: '200px' });
+                observer.observe(document.getElementById('memberSentinel'));
+            }
+
+            // Seed the search from the global header search (?q=...) before first load
+            (function applyGlobalQuery() {
+                const q = new URLSearchParams(window.location.search).get('q');
+                if (q) { $('#searchInput').val(q); }
+            })();
+
+            // Initial load
+            loadMembers(true);
+
+            // ---- Edit: populate modal ----
             $(document).on('click','.edit-btn', function (event) {
                 event.preventDefault();
                 const id = $(this).data('id');
@@ -327,9 +408,7 @@
                     url: `/members/${id}/edit`,
                     method: 'GET',
                     success: function(response) {
-                        console.log(response);
                         $('#EditModal').find('form').attr('action', `/members/${response.id}`);
-                        // $('#EditModal').find('input[name="id"]').val(response.id);
                         $('#EditModal').find('input[name="name"]').val(response.name);
                         $('#EditModal').find('input[name="nickName"]').val(response.nickName);
                         $('#EditModal').find('input[name="phone"]').val(response.phone);
@@ -339,45 +418,81 @@
                         $('#EditModal').find('input[name="kollan_khedmot"]').val(response.kollan_khedmot);
                         $('#EditModal').find('input[name="bloodType"]').val(response.bloodType);
                         $('#EditModal').find('input[name="status"]').prop('checked', response.status);
-                        $('#EditModal').find('.image-preview2').html(`<img src="storage/${response.image}" alt="Image Preview" style="margin: 10px 0;max-width: 40%; height: auto;">`);
+                        $('#EditModal').find('.image-preview2').html(response.image ? `<img src="/storage/${response.image}" alt="Image Preview" style="margin: 10px 0;max-width: 40%; height: auto;">` : '');
                         $('#EditModal').modal('show');
-
-                        $('#EditModal').find('form').attr('method', 'PUT');
-
                     },
-                    error: function(xhr) {
-                        console.error('Error submitting form:', xhr);
-                    }
+                    error: function(xhr) { console.error('Edit fetch error:', xhr); }
                 });
             });
 
+            // ---- Add: AJAX + prepend ----
+            $(document).on('submit', '#AddForm', function (e) {
+                e.preventDefault();
+                const $form = $(this);
+                const $btn = $form.find('button[type="submit"]');
+                $btn.prop('disabled', true);
+                $.ajax({
+                    url: $form.attr('action'),
+                    type: 'POST',
+                    data: new FormData(this),
+                    processData: false,
+                    contentType: false,
+                    dataType: 'json',
+                    success: function (response) {
+                        if (response.member) {
+                            $('#memberList').prepend(createMemberCard(response.member, 0));
+                            renumberMemberCards();
+                            totalCount += 1;
+                            renderCount();
+                            $('#memberEmpty').hide();
+                        }
+                        $('#DataModal').modal('hide');
+                        $form[0].reset();
+                        $form.find('.image-preview').html('');
+                        showNotification(response.status, response.message, response.status);
+                    },
+                    error: function (xhr) {
+                        const message = xhr.responseJSON?.message || 'জাকের যোগ করা যায়নি।';
+                        showNotification('danger', message, 'Danger');
+                    },
+                    complete: function () { $btn.prop('disabled', false); }
+                });
+            });
+
+            // ---- Edit submit: in-place card update ----
             $(document).on('submit','#EditForm', function (event) {
                 event.preventDefault();
-                const formData = new FormData(this);
-                console.log(formData);
+                const $form = $(this);
+                const $btn = $form.find('button[type="submit"]');
+                $btn.prop('disabled', true);
                 $.ajax({
-                    url: $(this).attr('action'),
+                    url: $form.attr('action'),
                     method: 'POST',
-                    data: formData,
-                    processData: false, // Important: prevent jQuery from processing the data
-                    contentType: false, // Important: prevent jQuery from setting content type
+                    data: new FormData(this),
+                    processData: false,
+                    contentType: false,
+                    dataType: 'json',
                     success: function(response) {
-                        location.reload();
-
+                        if (response.member) {
+                            const $old = $('[data-member-id="' + response.member.id + '"]');
+                            const serial = parseInt($old.find('table tr:first td').eq(1).text(), 10) || 1;
+                            const card = createMemberCard(response.member, serial - 1);
+                            if ($old.length) { $old.replaceWith(card); }
+                        }
                         $('#EditModal').modal('hide');
-                        showNotification(
-                            response.status,
-                            response.message,
-                            response.status
-                        );
+                        showNotification(response.status, response.message, response.status);
                     },
                     error: function(xhr) {
-                        console.error('Error submitting form:', xhr);
-                    }
+                        const message = xhr.responseJSON?.message || 'জাকের আপডেট করা যায়নি।';
+                        showNotification('danger', message, 'Danger');
+                    },
+                    complete: function () { $btn.prop('disabled', false); }
                 });
             });
 
+            // ---- Delete: in-place removal ----
             $(document).on('click','.delete-btn', function (event) {
+                event.preventDefault();
                 const id = $(this).data('id');
                 Swal.fire({
                     title: 'জাকের ডিলেট করবেন?',
@@ -388,128 +503,29 @@
                     cancelButtonColor: '#d33',
                     confirmButtonText: 'হ্যা'
                 }).then((result) => {
-                    /* Read more about isConfirmed, isDenied below */
                     if (result.isConfirmed) {
                         $.ajax({
                             url: `/members/${id}`,
                             method: 'DELETE',
+                            dataType: 'json',
                             success: function(response) {
-                                $('#member-table').load(location.href + ' #member-table');
-                                Swal.fire('Saved!', '', 'success')
+                                if (response.status === 'success') {
+                                    $('[data-member-id="' + id + '"]').remove();
+                                    renumberMemberCards();
+                                    totalCount = Math.max(0, totalCount - 1);
+                                    renderCount();
+                                    $('#memberEmpty').toggle(totalCount === 0);
+                                }
+                                showNotification(response.status, response.message, response.status);
+                            },
+                            error: function(xhr) {
+                                const message = xhr.responseJSON?.message || 'জাকের ডিলিট করা যায়নি।';
+                                showNotification('danger', message, 'Danger');
                             }
                         });
-                    } else if (result.isDenied) {
-                        Swal.fire('Changes are not saved', '', 'info')
-                    }
-                })
-            });
-
-            let term = '';
-
-            $(document).on('keyup', '#searchInput', function () {
-                term = $(this).val();
-                searchHandler(term);
-            });
-
-            function searchHandler(term) {
-                $.ajax({
-                    url: `/members/member-search/search`,
-                    type: "GET",
-                    data: { term: term },
-                    success: function (response) {
-                        // console.log('Search Results:', response);
-                        $('#memberCard').empty();
-                        $('#memberCardContainer').empty();
-                        response.forEach(function(member, key) {
-
-                            // let formattedDate = dayjs(member.date).format('DD-MMM-YYYY');
-                            
-                            let user ='';
-                            if(member.member_assigns){
-                                user = member.member_assigns[0].user.name;
-                            }
-                            if(member.user){
-                                user = member.user[0].name;
-                            }
-                            //<img src="${image}" alt="Avatar" style="width: 50px; height: 50px; border-radius: 5%; margin-right: 10px;">
-                            let image = member.image ? `storage/${member.image}` : '';
-                            $('#memberCardContainer').append(`
-                                <div class="col-sm-12 col-md-3 col-lg-3" >
-                                    <div class="card">
-                                        <div class="card-body">
-                                            <table class="table table-borderless">
-                                                <tr>
-                                                    <td width="50%"><strong>নং:</strong></td>
-                                                    <td width="50%">${key + 1}</td>
-                                                </tr>
-                                                <tr>
-                                                    <td width="50%"><strong>জাকের নাম:</strong></td>
-                                                    <td style="display: flex; align-items: center;" width="50%">
-                                                        
-                                                        <span>${member.name}</span>
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td width="50%"><strong>Nick Name:</strong></td>
-                                                    <td width="50%">${member.nickName?? ''}</td>
-                                                </tr>
-                                                <tr>
-                                                    <td width="50%"><strong>কল্যাণ নাম্বার:</strong></td>
-                                                    <td width="50%">${member.kollan_id}</td>
-                                                </tr>
-                                                <tr>
-                                                    <td width="50%"><strong>ফোন নাম্বার:</strong></td>
-                                                    <td width="50%">${member.phone ?? ''}</td>
-                                                </tr>
-                                                <tr>
-                                                    <td width="50%"><strong>কল্যাণ:</strong></td>
-                                                    <td width="50%">
-                                                        <span>হাদিয়া : ${member.kollan_khedmot ? member.kollan_khedmot : 'নাই'} টাকা</span>
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td width="50%"><strong>অবস্থা:</strong></td>
-                                                    <td width="50%">
-                                                        <a href="/members/status/${member.id}" class="badge bg-success text-white">${member.status ? 'সক্রিয়' : 'নিষ্ক্রিয়'}</a>
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td width="50%"><strong>কর্মি:</strong></td>
-                                                    <td width="50%">${user??''}</td>
-                                                </tr>
-                                                <tr>
-                                                    <td width="50%"><strong>ক্রিয়াকলা:</strong></td>
-                                                    <td width="50%">
-                                                        @can('show member')
-                                                        <a href="/members/${member.id}" class="btn btn-outline-info btn-sm mr-4 view-btn" data-id="${member.id}">
-                                                            <i class="fa fa-eye" ></i>
-                                                        </a>
-                                                        @endcan
-                                                        @can('update member')
-                                                        <a href="#" class="btn btn-outline-warning btn-sm mr-4 edit-btn" data-id="${member.id}" data-bs-toggle="modal" data-bs-target="#EditModal">
-                                                            <i class="fa fa-pencil" ></i>
-                                                        </a>
-                                                        @endcan
-                                                        @can('delete member')
-                                                        <a href="#" class="btn btn-outline-danger btn-sm mr-4 delete-btn" data-id="${member.id}">
-                                                            <i class="fa fa-trash" ></i>
-                                                        </a>
-                                                        @endcan
-                                                    </td>
-                                                </tr>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                            `);
-                        });
-                    },
-                    error: function (xhr, status, error) {
-                        console.error('Error:', error);
-                        console.error('Response:', xhr.responseText);
                     }
                 });
-            }
+            });
 
 
         });

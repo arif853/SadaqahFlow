@@ -18,12 +18,9 @@ class MembersController extends Controller
      */
     public function index()
     {
-        if(auth()->user()->isAdminLevel()){
-            $members = Member::orderBy('id','desc')->get();
-        }else{
-            $members = auth()->user()->members;
-        }
-        return view('admin.memebrs.index',compact('members'));
+        // The card list is loaded and paginated client-side via the search
+        // endpoint, so we no longer fetch every member up front.
+        return view('admin.memebrs.index');
     }
 
     /**
@@ -88,6 +85,15 @@ class MembersController extends Controller
             // }
 
             DB::commit();
+
+            // Quick-entry flow: return the new record so JS can prepend it without a full reload.
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'নতুন জাকের যোগ করা সফল হয়ছে।',
+                    'member' => $member->load('user'),
+                ]);
+            }
 
             return redirect()->back()->with('status', ['type' => 'success', 'message' => 'নতুন জাকের যোগ করা সফল হয়ছে।']);
 
@@ -179,7 +185,8 @@ class MembersController extends Controller
         $member->update($validatedData);
         // $member->save();
         session()->flash('status', ['type' => 'success', 'message' => 'জাকের সফলভাবে আপডেট হয়েছে']);
-        return response()->json(['status' => 'success', 'message' => 'জাকের সফলভাবে আপডেট হয়েছে']);
+        $member->load(['user', 'memberAssigns.user']);
+        return response()->json(['status' => 'success', 'message' => 'জাকের সফলভাবে আপডেট হয়েছে', 'member' => $member]);
     }
 
     /**
@@ -219,39 +226,50 @@ class MembersController extends Controller
 
     public function memberSearch(Request $request)
     {
+        // Now doubles as the paginated browse endpoint: an empty term lists
+        // everyone (respecting visibility), a term filters the same set.
         $request->validate([
-            'term' => 'required|string|max:100'
+            'term' => 'nullable|string|max:100'
         ]);
 
-        $term = strip_tags($request->input('term')); // Remove HTML tags
-        $term = htmlspecialchars($term, ENT_QUOTES, 'UTF-8'); // Prevent XSS
+        $perPage = 24;
+
+        $term = $request->filled('term')
+            ? htmlspecialchars(strip_tags($request->input('term')), ENT_QUOTES, 'UTF-8')
+            : null;
+
+        $query = Member::query();
 
         if (auth()->user()->isAdminLevel()) {
-            // Admins: Search across all members
-            $members = Member::where('name', 'like', '%' . $term . '%')
-                ->orWhere('kollan_id', 'like', '%' . $term . '%')
-                ->orWhere('phone', 'like', '%' . $term . '%')
-                ->orWhere('kollan_khedmot', 'like', '%' . $term . '%')
-                ->with('user')
-                ->limit(50) // Limit results
-                ->get();
+            $query->with('user');
         } else {
-            // Non-admins: Restrict to members assigned to the logged-in user
-            $members = Member::whereHas('memberAssigns', function ($query) {
-                $query->where('user_id', auth()->id());
-            })
-            ->where(function ($query) use ($term) {
-                $query->where('name', 'like', '%' . $term . '%')
+            // Non-admins: restrict to members assigned to the logged-in user
+            $query->whereHas('memberAssigns', function ($q) {
+                    $q->where('user_id', auth()->id());
+                })
+                ->with('memberAssigns.user');
+        }
+
+        if ($term) {
+            $query->where(function ($q) use ($term) {
+                $q->where('name', 'like', '%' . $term . '%')
                     ->orWhere('kollan_id', 'like', '%' . $term . '%')
                     ->orWhere('phone', 'like', '%' . $term . '%')
                     ->orWhere('kollan_khedmot', 'like', '%' . $term . '%');
-            })
-            ->with('memberAssigns.user')
-            ->limit(50) // Limit results
-            ->get();
+            });
         }
 
-        return response()->json($members);
+        $total = (clone $query)->count();
+        $members = $query->orderBy('id', 'desc')->paginate($perPage);
+
+        return response()->json([
+            'data' => $members->items(),
+            'meta' => [
+                'current_page' => $members->currentPage(),
+                'last_page' => $members->lastPage(),
+                'total' => $total,
+            ],
+        ]);
     }
 
 }
