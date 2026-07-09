@@ -78,6 +78,7 @@ class KhedmotController extends Controller
             $khedmot = Khedmot::create([
                 'date' => $request->date,
                 'member_id' => $request->member_id,
+                'type' => 'khedmot',
                 'program_id' => $request->program_id,
                 'other_program_name' => $request->other_program_name,
                 'khedmot_amount' => $request->khedmot_amount,
@@ -250,7 +251,9 @@ class KhedmotController extends Controller
 
         // Build the filtered query once, then reuse it for both the aggregate
         // totals (over the whole filtered set) and the paginated page fetch.
+        // Only plain খেদমত records here — কল্যাণ/ভাড়া have their own screens.
         $query = Khedmot::with('member','user','program')
+            ->where('type', 'khedmot')
             ->filterBy($request->date, $request->name)
             ->when($request->program_id, fn ($q) => $q->where('program_id', $request->program_id))
             ->visibleTo(auth()->user(), $request->userid);
@@ -273,174 +276,221 @@ class KhedmotController extends Controller
         ]);
     }
 
+    // ---------- কল্যাণ / ভাড়া collections ----------
+    // Stored in the khedmots table (type = kalyan|rent) but on their own
+    // screens. No program; month + collection date are the key fields.
+
+    public function kolyanIndex()
+    {
+        abort_unless(auth()->user()->can('view kollyan'), 403);
+        return $this->collectionIndexView('kalyan');
+    }
+
+    public function rentIndex()
+    {
+        abort_unless(auth()->user()->can('view rent'), 403);
+        return $this->collectionIndexView('rent');
+    }
+
+    private function collectionIndexView(string $type)
+    {
+        $user = auth()->user();
+        $users = User::where('status', 1)->get();
+        $members = $user->isAdminLevel() ? Member::where('status', 1)->get() : $user->members;
+
+        $config = $type === 'rent'
+            ? [
+                'type' => 'rent',
+                'amountField' => 'rent_amount',
+                'title' => 'ভাড়া',
+                'storeRoute' => route('khedmots.rent.store'),
+                'updateBase' => url('khedmots/rent/update'),
+                'searchRoute' => route('collections.search', 'rent'),
+            ]
+            : [
+                'type' => 'kalyan',
+                'amountField' => 'kalyan_amount',
+                'title' => 'কল্যাণ',
+                'storeRoute' => route('khedmots.kolyan.store'),
+                'updateBase' => url('khedmots/kolyan/update'),
+                'searchRoute' => route('collections.search', 'kalyan'),
+            ];
+
+        return view('admin.collections.index', compact('members', 'users', 'config'));
+    }
+
+    public function collectionSearch(Request $request, string $type)
+    {
+        $type = $type === 'rent' ? 'rent' : 'kalyan';
+        abort_unless(auth()->user()->can($type === 'rent' ? 'view rent' : 'view kollyan'), 403);
+
+        $amountField = $type === 'rent' ? 'rent_amount' : 'kalyan_amount';
+        $perPage = 24;
+
+        $query = Khedmot::with('member', 'user')
+            ->where('type', $type)
+            ->filterBy($request->date, $request->name)
+            ->when($request->month, fn ($q) => $q->where('month', $request->month))
+            ->visibleTo(auth()->user(), $request->userid);
+
+        $total = (clone $query)->count();
+        $amountSum = (clone $query)->sum($amountField);
+
+        $records = $query->orderBy('date', 'desc')->paginate($perPage);
+
+        return response()->json([
+            'data' => $records->items(),
+            'meta' => [
+                'current_page' => $records->currentPage(),
+                'last_page' => $records->lastPage(),
+                'total' => $total,
+                'amount_sum' => (float) $amountSum,
+            ],
+        ]);
+    }
+
     public function kolyanStore(Request $request)
     {
+        return $this->storeCollection($request, 'kalyan');
+    }
+
+    public function rentStore(Request $request)
+    {
+        return $this->storeCollection($request, 'rent');
+    }
+
+    private function storeCollection(Request $request, string $type)
+    {
         abort_unless(auth()->user()->can('create khedmot'), 403);
+
+        $amountField = $type === 'rent' ? 'rent_amount' : 'kalyan_amount';
+        $label = $type === 'rent' ? 'ভাড়া' : 'কল্যাণ';
+
         try {
             DB::beginTransaction();
             $request->validate([
                 'date' => 'required|date',
+                'month' => 'required|string|max:7',
                 'member_id' => 'required|exists:members,id',
-                'kalyan_amount' => 'required|numeric|min:0',
+                $amountField => 'required|numeric|min:0',
             ], [
                 'date.required' => 'তারিখ প্রয়োজন',
-                'member_id.required' => 'জাকের যোগ করতে হবে',
-                'kalyan_amount.required' => 'কল্যাণের পরিমাণ প্রয়োজন',
-                'kalyan_amount.numeric' => 'কল্যাণের পরিমাণ সংখ্যা হতে হবে',
-                'kalyan_amount.min' => 'কল্যাণের পরিমাণ 0 এর চেয়ে বেশি হতে হবে',
+                'month.required' => 'মাস প্রয়োজন',
+                'member_id.required' => 'জাকের নির্বাচন করা প্রয়োজন',
+                'member_id.exists' => 'জাকের খুঁজে পাওয়া যায়নি',
+                $amountField.'.required' => $label.' পরিমাণ প্রয়োজন',
+                $amountField.'.numeric' => $label.' পরিমাণ সংখ্যা হতে হবে',
+                $amountField.'.min' => $label.' পরিমাণ ০ এর চেয়ে বেশি হতে হবে',
             ]);
-            $request->except('_token', '_method');
 
-            //create new khedmot record
+            $this->authorizeMember($request->member_id);
+
+            // Guard against collecting the same month twice for one member.
+            $duplicate = Khedmot::where('type', $type)
+                ->where('member_id', $request->member_id)
+                ->where('month', $request->month)
+                ->where('is_collected', false)
+                ->exists();
+            if ($duplicate) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'month' => 'এই মাসের '.$label.' ইতিমধ্যে সংগ্রহ করা হয়েছে।',
+                ]);
+            }
+
             $khedmot = Khedmot::create([
                 'date' => $request->date,
+                'month' => $request->month,
+                'type' => $type,
                 'member_id' => $request->member_id,
-                'kalyan_amount' => $request->kalyan_amount,
+                $amountField => $request->input($amountField),
                 'comment' => $request->comment,
-                'user_id' => auth()->user()->id,
+                'user_id' => auth()->id(),
                 'is_collected' => false,
             ]);
 
             DB::commit();
 
-            return redirect()->back()->with('status', [
-                'type' => 'success',
-                'message' => 'কল্যাণ যোগ করা সফল হয়েছে।'
-            ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            $errorMessages = implode('<br>', $e->validator->errors()->all());
-            DB::rollBack();
-            Log::error('kollan Creation Error: '.$e->getMessage());
-            return redirect()->back()
-                ->withInput()
-                ->with('status', [
-                    'type' => 'danger',
-                    'message' => $errorMessages
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'status' => 'success',
+                    'message' => $label.' যোগ করা সফল হয়েছে।',
+                    'record' => $khedmot->load('member', 'user'),
                 ]);
+            }
+
+            return redirect()->back()->with('status', ['type' => 'success', 'message' => $label.' যোগ করা সফল হয়েছে।']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+            $errorMessages = implode('<br>', $e->validator->errors()->all());
+            if ($request->wantsJson()) {
+                return response()->json(['status' => 'danger', 'message' => $errorMessages], 422);
+            }
+            return redirect()->back()->withInput()->with('status', ['type' => 'danger', 'message' => $errorMessages]);
         }
     }
 
     public function kolyanUpdate(Request $request, string $id)
     {
-        abort_unless(auth()->user()->can('update khedmot'), 403);
-        try {
-            $khedmot = Khedmot::findOrFail($id);
-            $request->validate([
-                'date' => 'required|date',
-                'kalyan_amount' => 'nullable|numeric|min:0',
-                ], [
-                    'date.required' => 'তারিখ প্রয়োজন',
-                    'kalyan_amount.required' => 'কল্যাণ পরিমাণ প্রয়োজন',
-                    'kalyan_amount.numeric' => 'কল্যাণ পরিমাণ সংখ্যা হতে হবে',
-                    'kalyan_amount.min' => 'কল্যাণ পরিমাণ ০ এর চেয়ে বেশি হতে হবে',
-                ]);
-            $khedmot->update([
-                'date' => $request->date,
-                'kalyan_amount' => $request->kalyan_amount,
-                'comment' => $request->comment,
-            ]);
-            session()->flash('status', [
-                'type' => 'success',
-                'message' => 'কল্যাণ আপডেট করা সফল হয়েছে।'
-            ]);
-
-            return response()->json([
-                'status' => 'success',
-                'message' => 'কল্যাণ আপডেট করা সফল হয়েছে।'
-            ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            $errorMessages = implode('<br>', $e->validator->errors()->all());
-
-            return redirect()->back()
-                ->withInput()
-                ->with('status', [
-                    'type' => 'danger',
-                    'message' => $errorMessages
-                ]);
-        }
-    }
-
-    public function rentStore(Request $request)
-    {
-        abort_unless(auth()->user()->can('create khedmot'), 403);
-        try {
-            DB::beginTransaction();
-            $request->validate([
-                'date' => 'required|date',
-                'member_id' => 'required|exists:members,id',
-                'rent_amount' => 'nullable|numeric|min:0',
-            ], [
-                'date.required' => 'তারিখ প্রয়োজন',
-                'member_id.required' => 'জাকের যোগ করতে হবে',
-                'rent_amount.numeric' => 'রেন্ট পরিমাণ সংখ্যা হতে হবে',
-                'rent_amount.min' => 'রেন্ট পরিমাণ 0 এর চেয়ে বেশি হতে হবে',
-            ]);
-            $request->except('_token', '_method');
-
-            //create new khedmot record
-            $khedmot = Khedmot::create([
-                'date' => $request->date,
-                'member_id' => $request->member_id,
-                'rent_amount' => $request->rent_amount,
-                'comment' => $request->comment,
-                'user_id' => auth()->user()->id,
-                'is_collected' => false,
-            ]);
-            DB::commit();
-            return redirect()->back()->with('status', [
-                'type' => 'success',
-                'message' => 'ভাড়া যোগ করা সফল হয়েছে।'
-            ]);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            $errorMessages = implode('<br>', $e->validator->errors()->all());
-            DB::rollBack();
-            Log::error('Rent Creation Error: '.$e->getMessage());
-            return redirect()->back()
-                ->withInput()
-                ->with('status', [
-                    'type' => 'danger',
-                    'message' => $errorMessages
-                ]);
-        }
+        return $this->updateCollection($request, $id, 'kalyan');
     }
 
     public function rentUpdate(Request $request, string $id)
     {
+        return $this->updateCollection($request, $id, 'rent');
+    }
+
+    private function updateCollection(Request $request, string $id, string $type)
+    {
         abort_unless(auth()->user()->can('update khedmot'), 403);
+
+        $amountField = $type === 'rent' ? 'rent_amount' : 'kalyan_amount';
+        $label = $type === 'rent' ? 'ভাড়া' : 'কল্যাণ';
+
         try {
-            $khedmot = Khedmot::findOrFail($id);
+            $khedmot = Khedmot::where('type', $type)->findOrFail($id);
             $request->validate([
                 'date' => 'required|date',
-                'rent_amount' => 'nullable|numeric|min:0',
-                ], [
-                    'date.required' => 'তারিখ প্রয়োজন',
-                    'rent_amount.required' => 'ভাড়া পরিমাণ প্রয়োজন',
-                    'rent_amount.numeric' => 'ভাড়া পরিমাণ সংখ্যা হতে হবে',
-                    'rent_amount.min' => 'ভাড়া পরিমাণ 0 এর চেয়ে বেশি হতে হবে',
-                ]);
+                'month' => 'required|string|max:7',
+                $amountField => 'required|numeric|min:0',
+            ], [
+                'date.required' => 'তারিখ প্রয়োজন',
+                'month.required' => 'মাস প্রয়োজন',
+                $amountField.'.required' => $label.' পরিমাণ প্রয়োজন',
+                $amountField.'.numeric' => $label.' পরিমাণ সংখ্যা হতে হবে',
+                $amountField.'.min' => $label.' পরিমাণ ০ এর চেয়ে বেশি হতে হবে',
+            ]);
+
+            $this->authorizeMember($khedmot->member_id);
+
             $khedmot->update([
                 'date' => $request->date,
-                'rent_amount' => $request->rent_amount,
+                'month' => $request->month,
+                $amountField => $request->input($amountField),
                 'comment' => $request->comment,
-            ]);
-            session()->flash('status', [
-                'type' => 'success',
-                'message' => 'ভাড়া আপডেট করা সফল হয়েছে।'
             ]);
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'ভাড়া আপডেট করা সফল হয়েছে।'
+                'message' => $label.' আপডেট করা সফল হয়েছে।',
+                'record' => $khedmot->load('member', 'user'),
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             $errorMessages = implode('<br>', $e->validator->errors()->all());
-
-            return redirect()->back()
-                ->withInput()
-                ->with('status', [
-                    'type' => 'danger',
-                    'message' => $errorMessages
-                ]);
+            if ($request->wantsJson()) {
+                return response()->json(['status' => 'danger', 'message' => $errorMessages], 422);
+            }
+            return redirect()->back()->withInput()->with('status', ['type' => 'danger', 'message' => $errorMessages]);
         }
     }
+
+    // A non-admin may only collect for members assigned to them.
+    private function authorizeMember($memberId): void
+    {
+        $user = auth()->user();
+        if ($user->isAdminLevel()) {
+            return;
+        }
+        abort_unless($user->members()->whereKey($memberId)->exists(), 403, 'Unauthorized member.');
+    }
+
 }

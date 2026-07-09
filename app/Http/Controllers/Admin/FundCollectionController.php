@@ -22,7 +22,8 @@ class FundCollectionController extends Controller
     public function receiveIndex()
     {
         $user = Auth::user();
-        $fundCollections = Receive::orderBy('created_at', 'desc')
+        $fundCollections = Receive::with('submitor', 'collector', 'canceller', 'program')
+            ->orderBy('created_at', 'desc')
             ->when(!$user->isAdminLevel(), fn ($query) => $query->where('submitted_by', $user->id))
             ->get();
 
@@ -30,7 +31,7 @@ class FundCollectionController extends Controller
             ->flatMap(fn ($fundCollection) => array_filter(array_map('trim', explode(',', $fundCollection->khedmot_ids ?? ''))))
             ->unique()
             ->values();
-        $khedmotsById = Khedmot::whereIn('id', $khedmotIds)->get()->keyBy('id');
+        $khedmotsById = Khedmot::with('member')->whereIn('id', $khedmotIds)->get()->keyBy('id');
 
         foreach ($fundCollections as $fundCollection) {
             $ids = array_filter(array_map('trim', explode(',', $fundCollection->khedmot_ids ?? '')));
@@ -167,7 +168,10 @@ class FundCollectionController extends Controller
 
             DB::commit();
             return response()->json([
-                'message' => 'খেদমত গ্রহণ করা সফল হয়েছে।'
+                'message' => 'খেদমত গ্রহণ করা সফল হয়েছে।',
+                'status' => 'collected',
+                'collector' => Auth::user()->name,
+                'collected_at' => optional($fundCollection->collected_at)->format('d-M-Y h:i a'),
             ]);
         } catch (\Exception $e) {
             //throw $th;
@@ -197,7 +201,7 @@ class FundCollectionController extends Controller
                 'type' => 'danger',
                 'message' => 'খেদমত বাতিল করা হয়েছে।'
             ]);
-            return response()->json(['status' => 'danger', 'message' => 'খেদমত বাতিল করা হয়েছে।']);
+            return response()->json(['status' => 'danger', 'message' => 'খেদমত বাতিল করা হয়েছে।', 'canceler' => Auth::user()->name, 'canceled_at' => optional($fundCollection->canceled_at)->format('d-M-Y h:i a')]);
 
         } catch (\Exception $e) {
             Log::error($e->getMessage());

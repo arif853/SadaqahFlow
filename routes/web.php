@@ -22,14 +22,20 @@ use App\Http\Controllers\Admin\FundCollectionController;
 | be assigned to the "web" middleware group. Make something great!
 |
 */
-Route::get('/storage_link',function(){
-    Artisan::call('storage:link');
-    return redirect()->back()->with('status',['success' => 'Storage linked successfully.']);
-});
+// Admin maintenance shortcuts — must be authenticated and admin-level.
+// (Previously public, which let anyone thrash the cache anonymously.)
+Route::middleware('auth')->group(function () {
+    Route::get('/storage_link', function () {
+        abort_unless(auth()->user()->isAdminLevel(), 403);
+        Artisan::call('storage:link');
+        return redirect()->back()->with('status', ['type' => 'success', 'message' => 'Storage linked successfully.']);
+    })->name('maintenance.storage-link');
 
-Route::get('/cache_clear',function(){
-    Artisan::call('optimize:clear');
-    return redirect()->back()->with('status',['success' => 'Cache Cleared.']);
+    Route::get('/cache_clear', function () {
+        abort_unless(auth()->user()->isAdminLevel(), 403);
+        Artisan::call('optimize:clear');
+        return redirect()->back()->with('status', ['type' => 'success', 'message' => 'Cache cleared.']);
+    })->name('maintenance.cache-clear');
 });
 
 Route::get('/', function () {
@@ -46,6 +52,12 @@ Route::middleware('auth')->group(function () {
 
     //Users Routes
     Route::resource('users',UserController::class);
+
+    // কল্যাণ / ভাড়া collection screens — registered BEFORE the khedmots resource
+    // so these GET paths aren't swallowed by khedmots/{khedmot} (show).
+    Route::get('khedmots/kolyan',[KhedmotController::class,'kolyanIndex'])->name('khedmots.kolyan.index');
+    Route::get('khedmots/rent',[KhedmotController::class,'rentIndex'])->name('khedmots.rent.index');
+    Route::get('khedmots/collection-search/{type}',[KhedmotController::class,'collectionSearch'])->name('collections.search')->middleware('throttle:30,1');
 
     //Khedmots Routes
     Route::resource('khedmots',KhedmotController::class);

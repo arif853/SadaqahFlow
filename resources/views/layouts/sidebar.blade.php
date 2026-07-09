@@ -1,7 +1,7 @@
 <aside class="codex-sidebar">
     <div class="logo-gridwrap">
         <a class="codexbrand-logo" href="{{route('dashboard')}}">
-           <h2>{{config('app.name')}} <sub class="text-danger font-weight-bold" style="font-size: 11px;">v1.0</sub></h2>
+           <h2>{{config('app.name')}} <sub class="text-danger font-weight-bold" style="font-size: 11px;">{{ENV('APP_VERSION')}}</sub></h2>
         </a>
         <!-- <a class="codexbrand-logo" href="{{route('dashboard')}}"><img class="img-fluid"
                 src="{{asset('')}}assets/images/logo/logo.png" alt="theeme-logo"></a><a class="codex-darklogo"
@@ -50,11 +50,11 @@
                     @can('view khedmot')
                     <li class="{{ request()->routeIs('khedmots.*') ? 'active' : '' }}"><a href="{{route('khedmots.index')}}">খেদমত/মানত</a></li>
                     @endcan
-                    @can('view rent')
-                    <li><a href="javascript:void(0);">ভাড়া</a></li>
-                    @endcan
                     @can('view kollyan')
-                    <li><a href="javascript:void(0);">কল্যাণ</a></li>
+                    <li class="{{ request()->routeIs('khedmots.kolyan.*') ? 'active' : '' }}"><a href="{{ route('khedmots.kolyan.index') }}">কল্যাণ</a></li>
+                    @endcan
+                    @can('view rent')
+                    <li class="{{ request()->routeIs('khedmots.rent.*') ? 'active' : '' }}"><a href="{{ route('khedmots.rent.index') }}">ভাড়া</a></li>
                     @endcan
                 </ul>
             </li>

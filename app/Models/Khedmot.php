@@ -14,6 +14,8 @@ class Khedmot extends Model
         'date',
         'slug',
         'member_id',
+        'type',
+        'month',
         'program_id',
         'other_program_name',
         'khedmot_amount',

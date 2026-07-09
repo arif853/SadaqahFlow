@@ -96,6 +96,10 @@
                         <div class="hover-dropdown navprofile-drop">
                             <ul>
                                 <li><a href="{{route('profile.edit')}}"><i class="ti-settings"></i>setting</a></li>
+                                @if(auth()->user()->isAdminLevel())
+                                <li><a href="{{route('maintenance.cache-clear')}}"><i class="fa fa-refresh"></i>ক্যাশ ক্লিয়ার</a></li>
+                                <li><a href="{{route('maintenance.storage-link')}}"><i class="fa fa-link"></i>স্টোরেজ লিংক</a></li>
+                                @endif
                                 <li>
                                     <a href="{{route('logout')}}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();"><i class="fa fa-sign-out"></i>log out</a>
                                     <form id="logout-form" action="{{route('logout')}}" method="post">

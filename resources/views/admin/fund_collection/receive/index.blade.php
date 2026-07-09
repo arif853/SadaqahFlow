@@ -55,7 +55,7 @@
         </div>
         <div class="row" id="khedmotCard">
             @foreach ($fundCollections as $key => $fundCollection)
-            <div class="col-sm-12 col-md-4 col-lg-4 col-xl-4 col-xxl-3" >
+            <div class="col-sm-12 col-md-4 col-lg-4 col-xl-4 col-xxl-3" data-receive-id="{{ $fundCollection->id }}">
                 <div class="card">
                     <div class="card-body">
                         <table class="table table-borderless">
@@ -82,19 +82,7 @@
                             <tr>
                                 <td width="40%">অনুষ্ঠান নাম:</td>
                                 <td width="50%">
-                                    @if($fundCollection->program_name == 1)
-                                        ওরশ পাক
-                                    @elseif($fundCollection->program_name == 2)
-                                        বেসালত দিবস
-                                    @elseif($fundCollection->program_name == 3)
-                                        জলসায়ে ওরশ পাক
-                                    @elseif($fundCollection->program_name == 4)
-                                        কল্যাণ
-                                    @elseif($fundCollection->program_name == 5)
-                                        ভাড়া
-                                    @elseif($fundCollection->program_name == 6)
-                                        অনন্যা - {{$fundCollection->other_program_name}}
-                                    @endif
+                                    {{ $fundCollection->program ? $fundCollection->program->name : ($fundCollection->other_program_name ?? '') }}
                                 </td>
                             </tr>
                             <tr>
@@ -144,9 +132,9 @@
                             </tr>
                             @endif
 
-                            <tr>
+                            <tr class="receive-action-row">
                                 <td  width="40%">ক্রিয়াকলা</td>
-                                <td width="50%">
+                                <td width="50%" class="receive-action">
                                     @role('Super Admin|Admin')
 
                                         @if ($fundCollection->status == 'pending')
@@ -277,6 +265,25 @@
                 }
             });
 
+            // Update a receive card in place after approve/cancel — no full page reload.
+            function updateReceiveCard(id, status, response) {
+                const $card = $('[data-receive-id="' + id + '"]');
+                if (!$card.length) return;
+                if (status === 'collected') {
+                    $card.find('.receive-action').html('<a href="#" class="btn btn-outline-success btn-md me-2">Collected</a>');
+                    $card.find('.receive-action-row').before(
+                        '<tr><td width="40%">সংগ্রহ করেছে</td><td width="50%">' +
+                        (response.collector || '') + ',<br>' + (response.collected_at || '') + '</td></tr>'
+                    );
+                } else if (status === 'canceled') {
+                    $card.find('.receive-action').html('<a href="#" class="btn btn-outline-danger btn-md me-2">Canceled</a>');
+                    $card.find('.receive-action-row').before(
+                        '<tr><td width="40%">বাতিল করেছে</td><td width="50%">' +
+                        (response.canceler || '') + ',<br>' + (response.canceled_at || '') + '</td></tr>'
+                    );
+                }
+            }
+
             $(document).on('click', '.approveBtn', function (e) {
                 e.preventDefault();
                 const id = $(this).data('id');
@@ -300,16 +307,20 @@
                                 _token: $('meta[name="csrf-token"]').attr('content') // Include CSRF token
                             },
                             success: function (response) {
-                                // Swal.fire('Approved!', response.message, 'success');
-                                Swal.fire({
-                                    position: "top-end",
-                                    icon: "success",
-                                    title: response.message,
-                                    showConfirmButton: false,
-                                    timer: 1500
-                                });
-                                // Optionally reload the page or update the UI
-                                location.reload();
+                                // The controller returns HTTP 200 even on its catch path,
+                                // so only treat it as done when the success marker is present.
+                                if (response.status === 'collected') {
+                                    Swal.fire({
+                                        position: "top-end",
+                                        icon: "success",
+                                        title: response.message,
+                                        showConfirmButton: false,
+                                        timer: 1500
+                                    });
+                                    updateReceiveCard(id, 'collected', response);
+                                } else {
+                                    Swal.fire('Error!', response.message || 'গ্রহণ করা যায়নি।', 'error');
+                                }
                             },
                             error: function (xhr) {
                                 Swal.fire('Error!', 'Something went wrong. Please try again later.', 'error');
@@ -346,9 +357,13 @@
                                 _token: $('meta[name="csrf-token"]').attr('content') // Include CSRF token
                             },
                             success: function (response) {
-                                Swal.fire('Canceled!', response.message, 'success');
-                                // Optionally reload the page or update the UI
-                                location.reload();
+                                // canceled_at is only present on the genuine success path.
+                                if (response.canceled_at) {
+                                    Swal.fire('Canceled!', response.message, 'success');
+                                    updateReceiveCard(id, 'canceled', response);
+                                } else {
+                                    Swal.fire('Error!', response.message || 'বাতিল করা যায়নি।', 'error');
+                                }
                             },
                             error: function (xhr) {
                                 Swal.fire('Error!', 'Something went wrong. Please try again later.', 'error');
