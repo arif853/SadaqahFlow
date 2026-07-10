@@ -85,6 +85,24 @@
                                 class="fa fa-sun-o icon-light" style="display:none;"></i></div>
                     </li> --}}
 
+                    @if(auth()->user()->isAdminLevel())
+                    <li class="nav-notification" style="position: relative;">
+                        <div class="navicon-wrap" id="notifBell" style="position: relative; cursor: pointer;">
+                            <i data-feather="bell"></i>
+                            <span id="notifBadge" style="position:absolute;top:-6px;right:-6px;display:none;background:#dc3545;color:#fff;border-radius:50%;font-size:10px;line-height:1;padding:3px 5px;min-width:16px;text-align:center;">0</span>
+                        </div>
+                        <div id="notifDrop" style="display:none;position:absolute;right:0;top:120%;width:320px;max-width:90vw;background:#fff;box-shadow:0 6px 24px rgba(0,0,0,.15);border-radius:8px;z-index:1050;overflow:hidden;">
+                            <div style="padding:10px 12px;border-bottom:1px solid rgba(0,0,0,.08);display:flex;justify-content:space-between;align-items:center;">
+                                <strong style="color:#333;">নোটিফিকেশন</strong>
+                                <a href="javascript:void(0);" id="notifMarkRead" style="font-size:12px;">সব পড়া হয়েছে</a>
+                            </div>
+                            <ul id="notifList" style="max-height:340px;overflow-y:auto;margin:0;padding:0;list-style:none;">
+                                <li style="padding:14px;text-align:center;color:#888;">লোড হচ্ছে...</li>
+                            </ul>
+                        </div>
+                    </li>
+                    @endif
+
                     <li class="nav-profile">
                         <div class="media">
                             <div class="user-icon"><img class="img-fluid rounded-50"
@@ -259,6 +277,113 @@
             }
         }
     </script>
+
+    @if(auth()->check() && auth()->user()->isAdminLevel())
+    <script>
+        // ===== Admin notifications: in-app bell + Web Push subscription =====
+        (function () {
+            const VAPID_PUBLIC = @json(config('webpush.vapid.public_key'));
+            const CSRF = @json(csrf_token());
+            const URLS = {
+                list: @json(route('notifications.index')),
+                read: @json(route('notifications.read')),
+                subscribe: @json(route('push.subscribe')),
+            };
+
+            function urlBase64ToUint8Array(base64String) {
+                const padding = '='.repeat((4 - base64String.length % 4) % 4);
+                const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+                const raw = atob(base64);
+                const arr = new Uint8Array(raw.length);
+                for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+                return arr;
+            }
+            function bufToB64Url(buf) {
+                return btoa(String.fromCharCode.apply(null, new Uint8Array(buf)))
+                    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+            }
+
+            function render(data) {
+                const badge = document.getElementById('notifBadge');
+                const list = document.getElementById('notifList');
+                if (badge) {
+                    if (data.unread > 0) { badge.textContent = data.unread > 99 ? '99+' : data.unread; badge.style.display = 'inline-block'; }
+                    else { badge.style.display = 'none'; }
+                }
+                if (!list) return;
+                if (!data.notifications || !data.notifications.length) {
+                    list.innerHTML = '<li style="padding:14px;text-align:center;color:#888;">কোন নোটিফিকেশন নেই</li>';
+                    return;
+                }
+                list.innerHTML = data.notifications.map(function (n) {
+                    const bg = n.read ? 'transparent' : 'rgba(13,110,253,.06)';
+                    return '<li style="padding:10px 12px;border-bottom:1px solid rgba(0,0,0,.06);background:' + bg + ';">' +
+                        '<a href="' + n.url + '" style="display:block;color:inherit;text-decoration:none;">' +
+                        '<div style="font-weight:600;font-size:13px;color:#333;">' + (n.title || '') + '</div>' +
+                        '<div style="font-size:12px;color:#555;">' + (n.message || '') + '</div>' +
+                        '<div style="font-size:11px;color:#999;margin-top:2px;">' + (n.time || '') + '</div>' +
+                        '</a></li>';
+                }).join('');
+            }
+
+            function load() {
+                fetch(URLS.list, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+                    .then(function (r) { return r.json(); }).then(render).catch(function () {});
+            }
+
+            const bell = document.getElementById('notifBell');
+            const drop = document.getElementById('notifDrop');
+            if (bell && drop) {
+                bell.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    drop.style.display = (drop.style.display === 'none' || !drop.style.display) ? 'block' : 'none';
+                    ensurePush();
+                });
+                document.addEventListener('click', function (e) {
+                    if (!drop.contains(e.target) && !bell.contains(e.target)) drop.style.display = 'none';
+                });
+            }
+            const markBtn = document.getElementById('notifMarkRead');
+            if (markBtn) {
+                markBtn.addEventListener('click', function () {
+                    fetch(URLS.read, { method: 'POST', headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' }, credentials: 'same-origin' })
+                        .then(function () { load(); });
+                });
+            }
+
+            function ensurePush() {
+                if (!('serviceWorker' in navigator) || !('PushManager' in window) || !VAPID_PUBLIC) return;
+                if (typeof Notification === 'undefined' || Notification.permission === 'denied') return;
+                const subscribe = function () {
+                    return navigator.serviceWorker.ready.then(function (reg) {
+                        return reg.pushManager.getSubscription().then(function (existing) {
+                            return existing || reg.pushManager.subscribe({
+                                userVisibleOnly: true,
+                                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC)
+                            });
+                        });
+                    }).then(function (sub) {
+                        return fetch(URLS.subscribe, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+                            credentials: 'same-origin',
+                            body: JSON.stringify({
+                                endpoint: sub.endpoint,
+                                keys: { p256dh: bufToB64Url(sub.getKey('p256dh')), auth: bufToB64Url(sub.getKey('auth')) }
+                            })
+                        });
+                    }).catch(function (err) { console.warn('Push subscribe failed', err); });
+                };
+                if (Notification.permission === 'granted') subscribe();
+                else Notification.requestPermission().then(function (p) { if (p === 'granted') subscribe(); });
+            }
+
+            load();
+            setInterval(load, 30000);
+            if (typeof Notification !== 'undefined' && Notification.permission === 'granted') ensurePush();
+        })();
+    </script>
+    @endif
 </body>
 
 </html>

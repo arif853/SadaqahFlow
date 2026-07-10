@@ -1,5 +1,5 @@
-const staticCacheName = 'cpds-static-v2'; // Incremented version
-const dynamicCacheName = 'cpds-dynamic-v2';
+const staticCacheName = 'cpds-static-v3'; // Incremented version
+const dynamicCacheName = 'cpds-dynamic-v3';
 
 const assets = [
   '/assets/css/style.css',
@@ -126,5 +126,42 @@ self.addEventListener('fetch', evt => {
         // Fallback to cache only if network fails
         return caches.match(request);
       })
+  );
+});
+
+// ===== Web Push =====
+// Show a notification when the push service delivers a message.
+self.addEventListener('push', evt => {
+  let data = {};
+  try {
+    data = evt.data ? evt.data.json() : {};
+  } catch (e) {
+    data = { title: 'নোটিফিকেশন', body: evt.data ? evt.data.text() : '' };
+  }
+  const title = data.title || 'নতুন সংগ্রহ';
+  const options = {
+    body: data.body || '',
+    icon: data.icon || '/assets/images/logo-2.png',
+    badge: data.badge || '/assets/images/logo-2.png',
+    data: data.data || {},
+    vibrate: [100, 50, 100]
+  };
+  evt.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Focus an existing tab (or open one) when the notification is clicked.
+self.addEventListener('notificationclick', evt => {
+  evt.notification.close();
+  const targetUrl = (evt.notification.data && evt.notification.data.url) || '/dashboard';
+  evt.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+      for (const client of clientList) {
+        if ('focus' in client) {
+          if ('navigate' in client) { client.navigate(targetUrl); }
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow(targetUrl);
+    })
   );
 });

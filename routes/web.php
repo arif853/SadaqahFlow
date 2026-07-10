@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\ReportController;
@@ -114,6 +115,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/reports/user-wise-report/fetchKhedmot', [ReportController::class, 'fetchKhedmot'])->name('reports.user-wise-report.fetch');
     // Download route (POST) to generate PDF
     Route::post('/reports/user-wise-report/fetchKhedmot', [ReportController::class, 'userWiseReport'])->name('reports.user-wise-report');
+
+    //Notification Routes (in-app bell + Web Push subscription)
+    Route::post('/push-subscriptions', [NotificationController::class, 'subscribe'])->name('push.subscribe');
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/read', [NotificationController::class, 'markAllRead'])->name('notifications.read');
 
     //Profile Routes
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

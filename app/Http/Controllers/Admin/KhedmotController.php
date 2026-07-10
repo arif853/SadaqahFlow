@@ -10,6 +10,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Log;
+use App\Notifications\FundCollected;
+use Illuminate\Support\Facades\Notification;
 
 class KhedmotController extends Controller
 {
@@ -89,6 +91,8 @@ class KhedmotController extends Controller
                 'is_collected' => false,
             ]);
             DB::commit();
+
+            $this->notifyAdmins($khedmot, 'খেদমত', (float) $request->khedmot_amount + (float) $request->manat_amount);
 
             // For the in-page quick-entry flow: return the new record (with the
             // relations the card template needs) so JS can prepend it instead of
@@ -410,6 +414,8 @@ class KhedmotController extends Controller
 
             DB::commit();
 
+            $this->notifyAdmins($khedmot, $label, (float) $request->input($amountField));
+
             if ($request->wantsJson()) {
                 return response()->json([
                     'status' => 'success',
@@ -491,6 +497,31 @@ class KhedmotController extends Controller
             return;
         }
         abort_unless($user->members()->whereKey($memberId)->exists(), 403, 'Unauthorized member.');
+    }
+
+    // Notify every admin (except the collector) that a fund was collected.
+    // Wrapped so a push/transport failure never breaks the collection save.
+    private function notifyAdmins(Khedmot $khedmot, string $typeLabel, float $amount): void
+    {
+        try {
+            $admins = User::role(['Super Admin', 'Admin'])
+                ->where('id', '!=', auth()->id())
+                ->get();
+
+            if ($admins->isEmpty()) {
+                return;
+            }
+
+            Notification::send($admins, new FundCollected(
+                $typeLabel,
+                optional($khedmot->member)->name ?? '',
+                auth()->user()->name,
+                $amount,
+                $khedmot->id
+            ));
+        } catch (\Throwable $e) {
+            Log::error('FundCollected notification failed: ' . $e->getMessage());
+        }
     }
 
 }
